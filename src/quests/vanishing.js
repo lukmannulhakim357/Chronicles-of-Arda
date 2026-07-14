@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { EV, TILE } from '../config.js';
 import { tilesToPx, POINTS } from '../world/cuivienen.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
-import { grantXp } from '../data/leveling.js';
+import { grantXp, grantGold } from '../data/leveling.js';
 
 // Quest 1 — "The Vanishing" (waypoint 1, Cuiviénen).
 //   0  speak with Elder Alassë at the camp
@@ -318,7 +318,9 @@ export default class VanishingQuest {
       this.setStage(3);
       this.scene.healPlayer();
       grantXp(this.state, 20);
+      grantGold(this.state, 8);
       this.scene.emitXp();
+      this.scene.emitGold();
       this.spawnOrome(false);
       this.autosave('The rocks above the mere');
     });
@@ -484,10 +486,13 @@ export default class VanishingQuest {
         this.setStage(5);
         this.naroFollowing = false;
         this.state.waypointIndex = 1;
+        grantGold(this.state, 40);
+        this.scene.emitGold();
         this.autosave('The shores of Cuiviénen — the eve of the Great Journey');
         this.scene.time.delayedCall(600, () => {
           this.scene.scene.stop('UI');
           this.scene.scene.start('Story', {
+            id: 'summons-of-the-valar',
             title: 'The Summons of the Valar',
             art: 'art-call-of-orome',
             paragraphs: [

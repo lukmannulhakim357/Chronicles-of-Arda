@@ -21,3 +21,10 @@ export function grantXp(state, amount) {
   }
   return gained;
 }
+
+// Gold — rewarded on quest/waypoint/campaign completion and, in smaller
+// amounts, from things like defeating a foe or opening a treasure find.
+export function grantGold(state, amount) {
+  state.gold = (state.gold ?? 0) + amount;
+  return state.gold;
+}

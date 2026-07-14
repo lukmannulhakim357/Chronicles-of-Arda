@@ -1,8 +1,8 @@
 // Verifies the EXP/Level + stat point system directly: seed a character
 // already at Level 2 with 3 unspent stat points, open the pause menu
-// (should read "Character (3)"), switch to the Stats tab, allocate 2
-// points into VIT, confirm, and check the change persisted to state and
-// that derived Max HP recalculated correctly.
+// (should read "Character (3)"), spend 2 points into VIT on the Gear tab
+// (stats live directly under the paperdoll now), confirm, and check the
+// change persisted to state and that derived Max HP recalculated correctly.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
@@ -26,11 +26,11 @@ await page.evaluate(() => {
   const profile = {
     id: 'lvl-test', name: 'Lvl Tester', createdAt: Date.now(), updatedAt: Date.now(),
     campaigns: { greatJourney: { slots: [
-      { version: 1, kindred: 'vanyar', classId: 'warrior', stats: { VIT: 10, MAG: 2, STR: 10, DEX: 6 }, hp: 130,
+      { version: 1, kindred: 'vanyar', classId: 'warrior', stats: { VIT: 10, MAG: 2, STR: 10, DEX: 6 }, hp: 130, mp: 32, gold: 0,
         waypointIndex: 1, zone: 'steppes', pos: null,
         quest: { id: 'stragglers', stage: 0, flags: {} }, seenIntro: true,
-        equipment: { armor: null, weapon: null, trinket: null }, inventory: [],
-        level: 2, xp: 0, statPoints: 3, skillPoints: 1,
+        equipment: { head: null, chest: null, gloves: null, boots: null, accessory: null, weapon: null }, inventory: [],
+        level: 2, xp: 0, statPoints: 3, skillPoints: 1, titles: [], seenCards: [],
         savedAt: Date.now(), lastWhere: 'The Steppes' },
       null, null, null,
     ] } },
@@ -59,29 +59,23 @@ await page.screenshot({ path: `${OUT}/01-pause-with-points.png` });
 // Character is item index 1: y = height/2-118+52 = 225-118+52=159
 await page.mouse.click(400, 159);
 await page.waitForTimeout(700);
+await page.screenshot({ path: `${OUT}/02-gear-tab-with-stats.png` });
 
-// switch to Stats tab (right tab button, ~x=cx+64=464, y=42)
-await page.mouse.click(464, 42);
-await page.waitForTimeout(400);
-await page.screenshot({ path: `${OUT}/02-stats-tab.png` });
-
-// VIT row is the first stat row; top=72 (tabY 42 + 30), no levelUp banner this time
-// xp line y=72, +22=94; avail line y=94,+30=124; VIT row center = 124+25=149
-// '+' button for VIT is at roughly x = cx + rowW/2 - 16 (rowW=min(480,width-32)=480) -> x=400+240-16=624
-await page.mouse.click(624, 149);
+// Gear tab now shows the paperdoll + stat rows directly (no separate Stats
+// tab). VIT row '+' button sits at (228, 253) for this seeded save/viewport.
+await page.mouse.click(228, 253);
 await page.waitForTimeout(300);
-await page.mouse.click(624, 149);
+await page.mouse.click(228, 253);
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/03-after-plus-taps.png` });
 
-// Confirm button should now be visible; find & tap it (below the preview line)
-// rows: 4 * 56 = 224 starting at 149-25=124 -> ends 124+224=348, +10=358 preview line, +22=380, button at +20=400
-await page.mouse.click(484, 410); // Confirm (right of Cancel, bottom row)
+// Confirm button appears bottom-right (Cancel left) once points are pending
+await page.mouse.click(484, 424);
 await page.waitForTimeout(600);
 await page.screenshot({ path: `${OUT}/04-after-confirm.png` });
 
 // close
-await page.mouse.click(400, 410);
+await page.mouse.click(400, 424);
 await page.waitForTimeout(600);
 console.log('after allocation:', JSON.stringify(await readStats()));
 

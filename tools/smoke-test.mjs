@@ -98,7 +98,7 @@ await tapSheet(2); // Oromë's growth lines (this grant crosses into level 2)
 await page.waitForTimeout(900); // Character scene opens (World+UI paused)
 console.log('level/xp at level-up screen:', await page.evaluate(`${world()}.state.level + '/' + ${world()}.state.xp + '/' + ${world()}.state.statPoints`));
 await page.screenshot({ path: `${OUT}/14b-levelup.png` });
-await page.mouse.click(400, 410); // Close the level-up/stats screen
+await page.mouse.click(400, 424); // Close the level-up/gear screen
 await page.waitForTimeout(900); // World resumes -> Náro's dialogue fires
 await tapSheet(2); // Náro's two lines
 console.log('stage after orome:', await stage());

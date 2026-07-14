@@ -97,7 +97,9 @@ export default class WorldScene extends Phaser.Scene {
     this.time.delayedCall(300, () => {
       SaveSystem.saveActive(this, this.captureState(), { where: this.zoneName });
       this.emitHp();
+      this.emitMp();
       this.emitXp();
+      this.emitGold();
       this.quest.begin();
     });
   }
@@ -166,22 +168,34 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   // scripted tutorial moment (Oromë naming the Eldar) — opens straight to
-  // the Stats tab with the level-up banner shown
+  // the Gear tab (which also holds Stats) with the level-up banner shown
   openCharacterForLevelUp() {
     this.captureState();
     this.scene.pause();
     this.scene.pause('UI');
-    this.scene.launch('Character', { tab: 'stats', levelUp: true });
+    this.scene.launch('Character', { tab: 'gear', levelUp: true });
+  }
+
+  // scripted tutorial moment (first waypoint-ending gear reward) — opens
+  // the Gear tab with a nudge to equip what was just received
+  openCharacterForGearTutorial() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', { tab: 'gear', gearTutorial: true });
   }
 
   // equipment/stats may have changed in the Character scene while World
-  // was paused — refresh derived stats and clamp HP down if max HP dropped
+  // was paused — refresh derived stats and clamp HP/MP down if their max dropped
   onResumeFromOverlay() {
     this.state = getState(this);
     this.stats = derivedStats(effectiveStats(this.state));
     if (this.state.hp > this.stats.maxHp) this.state.hp = this.stats.maxHp;
+    if (this.state.mp > this.stats.maxMp) this.state.mp = this.stats.maxMp;
     this.emitHp();
+    this.emitMp();
     this.emitXp();
+    this.emitGold();
   }
 
   // ---------- hp ----------
@@ -204,6 +218,14 @@ export default class WorldScene extends Phaser.Scene {
       xp: this.state.xp,
       xpToNext: xpToNextLevel(this.state.level),
     });
+  }
+
+  emitMp() {
+    this.game.events.emit(EV.MP, { mp: this.state.mp, maxMp: this.stats.maxMp });
+  }
+
+  emitGold() {
+    this.game.events.emit(EV.GOLD, { gold: this.state.gold ?? 0 });
   }
 
   damagePlayer(amount) {

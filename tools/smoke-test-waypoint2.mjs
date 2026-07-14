@@ -108,12 +108,16 @@ await tp(32, 19); await page.keyboard.press('E'); await page.waitForTimeout(400)
 console.log('stage after gather3 (should be 2):', await stage());
 await page.screenshot({ path: `${OUT}/06-all-gathered.png` });
 
-// cross the ford
+// cross the ford -> gives cloak+boots and auto-opens the gear tutorial
+// (Character scene, World+UI paused) before the waypoint actually finishes
 await tp(32.5, 8);
 await page.keyboard.press('E'); await page.waitForTimeout(400);
 await tapSheet(2);
 await page.waitForTimeout(1200);
-await page.screenshot({ path: `${OUT}/07-crossed.png` });
+await page.screenshot({ path: `${OUT}/07-gear-tutorial.png` });
+await page.mouse.click(400, 424); // Close the gear tutorial -> finishQuest() continues
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${OUT}/07b-crossed.png` });
 
 // story card -> Journey
 await page.mouse.click(400, 390);

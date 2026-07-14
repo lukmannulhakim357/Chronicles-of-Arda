@@ -65,11 +65,23 @@ export function classById(id) {
   return CLASSES.find((c) => c.id === id);
 }
 
+// Full combat stat block derived from the 4 base stats. No combat system
+// reads most of these yet outside the scripted Waypoint 1 encounter — they
+// exist now so the Character screen can show real numbers that move when
+// gear changes, ahead of Waypoint 3's basic-attack combat.
 export function derivedStats(stats) {
+  const pAtk = 5 + stats.STR * 2;
   return {
     maxHp: 50 + stats.VIT * 8,
     maxMp: 20 + stats.MAG * 6,
-    attack: 5 + stats.STR * 2,
+    pAtk,
+    attack: pAtk, // legacy alias
+    mAtk: 5 + stats.MAG * 2,
+    atkRate: 100 + Math.floor(stats.DEX * 1.5),
+    pDef: 2 + Math.floor(stats.STR * 0.5 + stats.VIT * 0.5),
+    mDef: 2 + Math.floor(stats.MAG * 0.5 + stats.VIT * 0.3),
+    accuracy: Math.min(99, 80 + Math.floor(stats.DEX * 1.2)),
+    evasion: Math.min(60, Math.floor(stats.DEX * 0.8)),
     critPct: Math.min(40, 2 + stats.DEX),
   };
 }

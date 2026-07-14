@@ -64,24 +64,38 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
   concept doc's own framing of this waypoint as simpler filler content:
   1. Speak with Míriel, fallen behind the host
   2. Escort her west; forage and hunt three supply spots along the way
-  3. Lead her across the ford and rejoin the host — she and Tarion each
-     gift you a piece of armor, introducing **Inventory & Equipment**
-- **Inventory & Equipment** — introduced this waypoint as the first system
-  in a build-by-build gameplay tutorial (The Great Journey doubles as an
-  onboarding arc): Armor / Weapon / Trinket slots, open via the pause menu.
-  Equipping swaps gear in and out of your carry list and applies its stat
-  bonus immediately (Woven Steppe Cloak: +2 DEX, Herder's Jerkin: +3 VIT).
-  Weapon and Trinket stay locked — Waypoint 3 introduces weapons alongside
-  a first taste of basic-attack combat.
+  3. Lead her across the ford and rejoin the host — she gifts you a cloak
+     and boots, which now pauses on a **gear tutorial** (the Character
+     screen opens automatically, nudging you to equip your reward) before
+     the waypoint actually finishes. Tarion gifts a jerkin and bracers too.
 - **EXP & Leveling** — introduced at the very moment Oromë names you one of
   the Eldar: surviving the shadow-servant and his departure together grant
   exactly enough EXP to level up on the spot (concept doc §16.6 formula),
   and Oromë's own dialogue doubles as the in-fiction tutorial for spending
-  the 3 stat points you gain each level. The **Character** screen (pause
-  menu, or opened automatically on level-up) now has two tabs — **Gear**
-  (the old Inventory) and **Stats**, where you freely allocate points across
-  VIT/MAG/STR/DEX with a live Max HP/MP preview before confirming. The HUD
-  gains a level + XP bar under the HP bar.
+  the 3 stat points you gain each level. The HUD gains a level + XP bar
+  under the HP/MP bars, and the pause menu shows "Character (N)" whenever
+  points are unspent.
+- **Gear & Stats, redesigned as one screen** — the **Character** menu's
+  **Gear** tab is now a proper RPG paperdoll: 6 equipment slots (Head /
+  Chest / Gloves / Boots / Trinket / Weapon — Head, Trinket and Weapon stay
+  locked until later content fills them), with stat-point spending and the
+  full derived combat block (HP, MP, P-ATK, M-ATK, ATK-RATE, P-DEF, M-DEF,
+  Accuracy, Evasion, CRIT%) directly underneath, so equipping or unequipping
+  gear shows the real number change immediately. A pack grid sits alongside
+  it — tap an item to see its name/description/bonus, then Equip or Unequip
+  from the detail panel.
+- **Gold** — quests, waypoints and the odd "defeated something in the dark"
+  moment now pay out gold alongside EXP; the HUD shows a running total
+  top-right. Treasure chests and per-kill drops in future dungeons/wilds
+  hook into the same `grantGold()` system.
+- **Story Collection ("Tales" tab)** — every story card you've seen (waypoint
+  completions, major beats) is archived and replayable from the Character
+  screen, so you can revisit *Chronicles of Arda* as you go.
+- **Skills, Titles, Crafting** — stub tabs/screens for systems that don't
+  exist yet: a per-class skill tree (banked skill points show already),
+  milestone titles that will grant bonus stats, and crafting professions
+  (Blacksmithing / Tailoring / Alchemy / Cooking). All clearly marked
+  "Upcoming" rather than hidden, so the shape of the full game is visible.
 - **The Road West** — the fixed 10-waypoint journey map. Waypoints 3–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
@@ -148,7 +162,13 @@ marked placeholder frame in-game until they're ready.
 
 ## Roadmap (next builds)
 
-1. Waypoint 3 — The Great Forest (guide stragglers back to the path by night)
-2. Class kit differentiation (weapon sprites, first skills per class)
+1. Waypoint 3 — The Great Forest (guide stragglers back to the path by night;
+   introduces weapons + basic-attack combat, unlocking the Weapon slot)
+2. Class kit differentiation (weapon sprites, first skills per class — fills
+   in the Skills tab)
 3. Waypoints 4–10 following the chain in `src/data/waypoints.js`
-4. Valinor as an explorable hub + persistent teleport (post-campaign scope)
+4. Milestone titles, crafting professions, and richer treasure/monster gold
+   drops as dungeons/wilderness content ships
+5. Real paperdoll/item-icon art to replace the current vector/monogram
+   placeholders in the Gear tab
+6. Valinor as an explorable hub + persistent teleport (post-campaign scope)

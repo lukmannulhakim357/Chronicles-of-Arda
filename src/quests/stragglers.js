@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { EV } from '../config.js';
 import { tilesToPx, POINTS } from '../world/steppes.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { grantXp, grantGold } from '../data/leveling.js';
 
 // Quest 2 — "The Stragglers" (waypoint 2, The Steppes).
 //   0  speak with Míriel, a straggler fallen behind the host
@@ -136,12 +137,13 @@ export default class StragglersQuest {
       this.dialogue(
         [
           { speaker: 'Tarion', text: 'Good. One less family lost to the grass. The host will remember that.' },
-          { speaker: 'Tarion', text: 'Here — take my spare jerkin. Hide’s tougher than it looks. Wear it well.' },
+          { speaker: 'Tarion', text: 'Here — take my spare jerkin, and these old bracers too. Hide’s tougher than it looks. Wear them well.' },
         ],
         null,
         () => {
           this.state.quest.flags.tarionGaveJerkin = true;
           this.giveItem('herders_jerkin', "Herder's Jerkin");
+          this.giveItem('herders_bracers', "Herder's Bracers");
           this.autosave('The Steppes — the far bank');
         }
       );
@@ -199,12 +201,14 @@ export default class StragglersQuest {
     this.dialogue(
       [
         { speaker: 'Míriel', text: 'There — I can see them! The fires, the standards... we made it.' },
-        { speaker: 'Míriel', text: 'Here — take this. I wove it myself; it kept me warm the whole march. You’ve more than earned it.' },
+        { speaker: 'Míriel', text: 'Here — take this. I wove it myself; it kept me warm the whole march. And boots too — you’ve more than earned them both.' },
       ],
       null,
       () => {
         this.giveItem('steppe_cloak', 'Woven Steppe Cloak');
-        this.finishQuest();
+        this.giveItem('steppe_boots', 'Steppe-worn Boots');
+        this.scene.events.once(Phaser.Scenes.Events.RESUME, () => this.finishQuest());
+        this.scene.openCharacterForGearTutorial();
       }
     );
   }
@@ -235,10 +239,15 @@ export default class StragglersQuest {
   finishQuest() {
     this.setStage(3);
     this.state.waypointIndex = 2;
+    grantXp(this.state, 25);
+    grantGold(this.state, 40);
+    this.scene.emitXp();
+    this.scene.emitGold();
     this.autosave('The Steppes — the far bank');
     this.scene.time.delayedCall(600, () => {
       this.scene.scene.stop('UI');
       this.scene.scene.start('Story', {
+        id: 'across-the-steppe',
         title: 'Across the Steppe',
         paragraphs: [
           'Waypoint 2 — The Steppes: complete.',
@@ -260,7 +269,7 @@ export default class StragglersQuest {
 
   giveItem(itemId, label) {
     if (!this.state.inventory) this.state.inventory = [];
-    if (this.state.inventory.includes(itemId) || this.state.equipment?.armor === itemId) return;
+    if (this.state.inventory.includes(itemId) || Object.values(this.state.equipment ?? {}).includes(itemId)) return;
     this.state.inventory.push(itemId);
     this.toast(`Received: ${label}`, 2600);
     if (!this.state.quest.flags.seenInventoryTip) {
