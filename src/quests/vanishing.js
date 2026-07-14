@@ -61,6 +61,19 @@ export default class VanishingQuest {
     this.scene.game.events.emit(EV.TOAST, { text, duration });
   }
 
+  // ---------- NPCs (always present, talkable at any stage) ----------
+
+  spawnNpcs(points) {
+    this.scene.addNpc('npc_elder', points.elder, 'Elder Alassë', () => this.talkElder());
+    this.scene.addNpc('npc_kinswoman', points.kinswoman, 'Nettë', () => this.talkKinswoman());
+    this.scene.addNpc('npc_elf_hunter', points.hunter, 'Herenion', () => this.talkHunter());
+  }
+
+  update() {
+    if (this.stage === 2) this.encounterUpdate();
+    if (this.stage === 4) this.followerUpdate();
+  }
+
   // ---------- setup on zone entry (fresh or from a save) ----------
 
   begin() {
@@ -264,7 +277,7 @@ export default class VanishingQuest {
   }
 
   // called when the player attacks (from WorldScene)
-  tryHitShadow() {
+  onPlayerAttack() {
     if (!this.shadow?.active) return;
     const player = this.scene.player;
     const d = Phaser.Math.Distance.Between(player.x, player.y, this.shadow.x, this.shadow.y);

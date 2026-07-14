@@ -4,6 +4,7 @@ import { makeTextButton, starfield } from '../ui/widgets.js';
 import { WAYPOINTS } from '../data/waypoints.js';
 import { getState, setState } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { ZONES, freshQuestState } from '../world/zones.js';
 
 // The Road West — the chain of ten waypoints of the Great Journey.
 // East (Cuiviénen) at the bottom, the Sea at the top. This build contains
@@ -123,7 +124,17 @@ export default class JourneyScene extends Phaser.Scene {
     }
     const w = WAYPOINTS[i];
     if (w.built) {
-      const s = { ...this.state, zone: w.id };
+      // a genuinely new visit (quest doesn't already belong to this zone)
+      // gets fresh quest progress and a default spawn; resuming an
+      // in-progress or finished waypoint keeps everything as it was
+      const isNewQuest = this.state.quest?.id !== ZONES[w.id]?.questId;
+      const s = {
+        ...this.state,
+        zone: w.id,
+        quest: isNewQuest ? freshQuestState(w.id) : this.state.quest,
+        pos: isNewQuest ? null : this.state.pos,
+        seenIntro: isNewQuest ? false : this.state.seenIntro,
+      };
       setState(this, s);
       this.scene.start('World');
     } else {

@@ -6,7 +6,7 @@ Middle-earth), built mobile-first with [Phaser 3](https://phaser.io) +
 browser. Play it live: **https://lukmannulhakim357.github.io/Chronicles-of-Arda/**
 
 **Current build: the Elf origin campaign — “The Great Journey”** (vertical
-slice, Waypoint 1 of 10 fully playable). Design source of truth:
+slice, Waypoints 1–2 of 10 fully playable). Design source of truth:
 [`arda-rpg-concept.md`](arda-rpg-concept.md); build directives:
 [`docs/great-journey-build-prompt.md`](docs/great-journey-build-prompt.md).
 
@@ -21,8 +21,8 @@ slice, Waypoint 1 of 10 fully playable). Design source of truth:
 | Waypoint | Status |
 |---|---|
 | 1. Cuiviénen — "The Vanishing" | ✅ playable end-to-end |
-| 2. The Steppes | 📋 planned (next up) |
-| 3. The Great Forest | 📋 planned |
+| 2. The Steppes — "The Stragglers" | ✅ playable end-to-end |
+| 3. The Great Forest | 📋 planned (next up) |
 | 4. Vales of Anduin — "Lenwë's Choice" | 📋 planned |
 | 5. Misty Mountains | 📋 planned |
 | 6. Rhovanion | 📋 planned |
@@ -59,7 +59,13 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
   3. Drive off (or survive) a shadow-servant of Melkor
   4. The coming of Oromë — dialogue with a choice that's saved to your story
   5. Walk Náro home; the summons West ends the waypoint
-- **The Road West** — the fixed 10-waypoint journey map. Waypoints 2–10 are
+- **Waypoint 2 — The Steppes**, fully playable: open grassland split by a
+  river, and the quest **“The Stragglers”** end-to-end — no combat, per the
+  concept doc's own framing of this waypoint as simpler filler content:
+  1. Speak with Míriel, fallen behind the host
+  2. Escort her west; forage and hunt three supply spots along the way
+  3. Lead her across the ford and rejoin the host
+- **The Road West** — the fixed 10-waypoint journey map. Waypoints 3–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
 - **Save system** — a profile can hold up to 4 characters per campaign; free
@@ -100,8 +106,8 @@ public/assets/tiles/       terrain & decor tiles (see CREDITS.md)
 public/assets/art/         narrative illustrations (see CREDITS.md)
 src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
                             Creation, Story, World, Journey, UI
-src/world/                 zone builders (cuivienen)
-src/quests/                quest scripts (vanishing)
+src/world/                 zone builders (cuivienen, steppes) + the zone registry
+src/quests/                quest scripts (vanishing, stragglers)
 src/systems/               save system (profiles/campaigns/slots), game state
 src/data/                  campaigns, kindreds, classes, waypoints
 src/ui/                    shared widgets + the DOM text-input modal
@@ -125,7 +131,7 @@ marked placeholder frame in-game until they're ready.
 
 ## Roadmap (next builds)
 
-1. Waypoint 2 — The Steppes (escort + hunting/foraging quest)
+1. Waypoint 3 — The Great Forest (guide stragglers back to the path by night)
 2. Class kit differentiation (weapon sprites, first skills per class)
-3. Waypoints 3–10 following the chain in `src/data/waypoints.js`
+3. Waypoints 4–10 following the chain in `src/data/waypoints.js`
 4. Valinor as an explorable hub + persistent teleport (post-campaign scope)

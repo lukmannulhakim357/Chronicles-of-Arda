@@ -17,7 +17,7 @@ export const WAYPOINTS = [
     terrain: 'Open grassland, river fords',
     beat: 'The first open stretch of the westward march.',
     quest: 'The Stragglers',
-    built: false,
+    built: true,
   },
   {
     id: 'great-forest',

@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
-import { EV, TILE } from '../config.js';
+import { EV } from '../config.js';
 import { getState, setState } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { kindredById } from '../data/kindreds.js';
 import { derivedStats } from '../data/classes.js';
-import * as cuivienen from '../world/cuivienen.js';
-import VanishingQuest from '../quests/vanishing.js';
+import { WAYPOINTS } from '../data/waypoints.js';
+import { ZONES } from '../world/zones.js';
+import { tilesToPx } from '../world/coords.js';
 
 const SPEED = 150;
 
@@ -22,12 +23,19 @@ export default class WorldScene extends Phaser.Scene {
     }
     this.stats = derivedStats(this.state.stats);
 
+    const zoneDef = ZONES[this.state.zone];
+    if (!zoneDef) {
+      this.scene.start('Title');
+      return;
+    }
+    this.zoneName = WAYPOINTS.find((w) => w.id === this.state.zone)?.name ?? this.state.zone;
+
     // zone
-    const zone = cuivienen.build(this);
+    const zone = zoneDef.build(this);
     this.zoneInfo = zone;
 
     // player
-    const spawn = this.state.pos ?? cuivienen.tilesToPx(zone.points.spawn);
+    const spawn = this.state.pos ?? tilesToPx(zone.points.spawn);
     const sheet = kindredById(this.state.kindred).sheet;
     this.sheet = sheet;
     this.player = this.physics.add.sprite(spawn.x, spawn.y, sheet, 10 * 13);
@@ -53,12 +61,10 @@ export default class WorldScene extends Phaser.Scene {
       .setDepth(50000);
     this.nightBaseAlpha = 0.42;
 
-    // NPCs at camp
+    // zone NPCs + quest
     this.npcs = [];
-    this.quest = new VanishingQuest(this);
-    this.addNpc('npc_elder', zone.points.elder, 'Elder Alassë', () => this.quest.talkElder());
-    this.addNpc('npc_kinswoman', zone.points.kinswoman, 'Nettë', () => this.quest.talkKinswoman());
-    this.addNpc('npc_elf_hunter', zone.points.hunter, 'Herenion', () => this.quest.talkHunter());
+    this.quest = new zoneDef.Quest(this);
+    this.quest.spawnNpcs(zone.points);
 
     // input
     this.cursors = this.input.keyboard?.createCursorKeys();
@@ -85,7 +91,7 @@ export default class WorldScene extends Phaser.Scene {
 
     // autosave on zone entry (concept doc §15.3)
     this.time.delayedCall(300, () => {
-      SaveSystem.saveActive(this, this.captureState(), { where: 'Cuiviénen' });
+      SaveSystem.saveActive(this, this.captureState(), { where: this.zoneName });
       this.emitHp();
       this.quest.begin();
     });
@@ -104,10 +110,21 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   addNpc(sheet, tile, name, onTalk) {
-    const p = cuivienen.tilesToPx(tile);
+    const p = tilesToPx(tile);
     const spr = this.add.sprite(p.x, p.y, sheet, 10 * 13);
     spr.setDepth(p.y);
-    const npc = { sprite: spr, x: p.x, y: p.y, name, label: 'Talk', interact: onTalk };
+    const npc = {
+      sprite: spr,
+      get x() {
+        return spr.x;
+      },
+      get y() {
+        return spr.y;
+      },
+      name,
+      label: 'Talk',
+      interact: onTalk,
+    };
     this.npcs.push(npc);
     return npc;
   }
@@ -115,14 +132,18 @@ export default class WorldScene extends Phaser.Scene {
   // ---------- state / save ----------
 
   captureState() {
-    const s = { ...this.state, pos: { x: Math.round(this.player.x), y: Math.round(this.player.y) }, zone: 'cuivienen' };
+    const s = {
+      ...this.state,
+      pos: { x: Math.round(this.player.x), y: Math.round(this.player.y) },
+      zone: this.state.zone,
+    };
     setState(this, s);
     this.state = s;
     return s;
   }
 
   onMenuSave() {
-    SaveSystem.saveActive(this, this.captureState(), { where: 'Cuiviénen' });
+    SaveSystem.saveActive(this, this.captureState(), { where: this.zoneName });
     this.game.events.emit(EV.TOAST, { text: 'Journey saved.' });
   }
 
@@ -182,7 +203,7 @@ export default class WorldScene extends Phaser.Scene {
     this.attackCooldown = this.time.now + 550;
     this.attacking = true;
     this.player.play(`${this.sheet}-slash-${this.facing}`, true);
-    this.time.delayedCall(160, () => this.quest.tryHitShadow());
+    this.time.delayedCall(160, () => this.quest.onPlayerAttack?.());
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.attacking = false;
     });
@@ -240,7 +261,6 @@ export default class WorldScene extends Phaser.Scene {
     }
 
     // quest per-frame logic
-    if (this.state.quest.stage === 2) this.quest.encounterUpdate();
-    if (this.state.quest.stage === 4) this.quest.followerUpdate();
+    this.quest.update();
   }
 }
