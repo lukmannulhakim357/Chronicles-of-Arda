@@ -161,7 +161,7 @@ export default class CreationScene extends Phaser.Scene {
     SaveSystem.save(state, { where: 'The shores of Cuiviénen' });
     this.scene.start('Story', {
       title: 'Cuiviénen, the Waters of Awakening',
-      artFlag: 'Opening splash — the mere of Cuiviénen under starlight: dark water, silver reflections, the first Elves waking beneath Varda’s new stars.',
+      art: 'art-cuivienen-awakening',
       paragraphs: [
         'Before Sun, before Moon, there is only starlight — and the mere of Cuiviénen, where your people woke beneath it.',
         'But of late, those who wander far from the water do not come back. The hunters speak of a Rider in the dark, and of shadows that are not shadows.',

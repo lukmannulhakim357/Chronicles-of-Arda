@@ -1,28 +1,21 @@
 # Cutscene / Scenario Illustrations Needed
 
 Per the build directive, narrative illustrations are **not** generated inside
-this project — they are produced externally (Gemini workflow) and fed back in.
-This file tracks every moment that needs one. In-game, each spot currently
-shows a clearly marked `[ illustration planned ]` placeholder frame
-(`StoryScene`, `artFlag` parameter).
+this project — they are produced externally (Gemini workflow) and fed back
+in. This file tracks every moment that needs one. Wired-in illustrations show
+full-size in `StoryScene` (`art` parameter); still-missing ones show a clearly
+marked `[ illustration planned ]` placeholder frame (`artFlag` parameter).
 
-## Needed now (wired into this build)
+## Done
 
-### 1. Opening — Cuiviénen under starlight
+### 1. Opening — Cuiviénen under starlight ✅
 - **Where**: story card after character creation (`CreationScene.confirm`)
-- **Mood**: hushed, primeval night; no sun or moon has ever risen
-- **Key elements**: dark mere reflecting dense stars, silver light on reeds and
-  rocks, distant figures of newly-woken Elves by the shore; no fire, no
-  buildings — the world before civilization
+- **File**: `public/assets/art/cuivienen-awakening.jpg`
 
-### 2. The Coming of Oromë
+### 2. The Coming of Oromë ✅
 - **Where**: story card after completing "The Vanishing"
   (`VanishingQuest.finishQuest`)
-- **Mood**: awe and terror resolving into wonder — the first light of Aman
-  breaking into Middle-earth's night
-- **Key elements**: Oromë the huntsman on Nahar (white horse), a golden glow
-  that the starlit plain has never seen, wisps of fleeing shadow at the edges,
-  small elven figures shielding their eyes
+- **File**: `public/assets/art/cuivienen-call-of-orome.jpg`
 
 ## Coming with later waypoints (not yet wired)
 
@@ -38,9 +31,26 @@ shows a clearly marked `[ illustration planned ]` placeholder frame
 
 ## How to wire finished art in
 
-1. Drop the image into `public/assets/art/` (e.g. `opening-cuivienen.png`).
-2. In the corresponding `StoryScene` call, replace `artFlag: '…'` with
-   `art: 'assets/art/opening-cuivienen.png'` (and add an `this.load.image`
-   entry in `BootScene`), then render it in `StoryScene` instead of the
-   placeholder frame. The placeholder code path stays for any still-missing
-   pieces.
+1. Drop the image into `public/assets/art/` (JPEG is fine — resize to
+   ~1400px wide first; see "Adding a new illustration" below for the exact
+   command used for the two done above).
+2. Add a `this.load.image('art-your-key', 'assets/art/your-file.jpg')` line
+   in `BootScene.preload()`.
+3. In the corresponding `StoryScene` call, replace `artFlag: '…'` with
+   `art: 'art-your-key'`. The placeholder path stays for any still-missing
+   pieces, so partially-illustrated builds work fine.
+4. Add a line for the file in `CREDITS.md` under "Narrative illustrations".
+
+### Adding a new illustration (resize/compress)
+
+Source images from Gemini tend to be large (2000px+, 300–500KB). Resize to a
+web/mobile-friendly size with `sharp` (already a project devDependency):
+
+```bash
+node -e "
+require('sharp')('/path/to/source.jpg')
+  .resize({ width: 1400, withoutEnlargement: true })
+  .jpeg({ quality: 82, mozjpeg: true })
+  .toFile('public/assets/art/your-file.jpg');
+"
+```

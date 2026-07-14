@@ -40,6 +40,18 @@ collection (per-file provenance from Stendhal's
 | `evergreen.png` | Lanea Zimmerman (Sharm) | CC BY-SA 3.0 | [LPC: Sharm's tiles](https://opengameart.org/node/13470) |
 | `greenGround2.png` | Rachel J Morris (Moosader) | CC0 | [Public Domain Tiles](https://moosader.deviantart.com/art/Public-Domain-Tiles-210769545) |
 
+## Narrative illustrations (`public/assets/art/*.jpg`)
+
+Per the project's cutscene-art workflow (see
+`docs/cutscene-art-needed.md`), these are **not** free/CC-licensed pack
+assets — they were generated externally with Google's Gemini by the project
+owner specifically for this game, then dropped into the repo.
+
+| File | Used for | Generated with |
+|---|---|---|
+| `cuivienen-awakening.jpg` | Opening story card (character creation → Cuiviénen) | Gemini |
+| `cuivienen-call-of-orome.jpg` | "The Summons of the Valar" card (end of "The Vanishing") | Gemini |
+
 ## Engine & tools
 
 - [Phaser 3](https://phaser.io) — MIT

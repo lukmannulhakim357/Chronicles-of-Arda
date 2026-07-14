@@ -2,11 +2,18 @@ import Phaser from 'phaser';
 import { COLORS, FONTS } from '../config.js';
 import { makeTextButton, starfield } from '../ui/widgets.js';
 
-// Reusable narration card. Where a hand-made illustration is planned
-// (Gemini workflow — see docs/cutscene-art-needed.md), `artFlag` names it
-// and the scene shows a clearly-marked placeholder frame.
+// Reusable narration card. Two art states:
+//   - `art`: a texture key already loaded in BootScene — shown full-size,
+//     framed, aspect-preserved (finished Gemini-generated illustrations).
+//   - `artFlag`: no illustration yet — shows a clearly-marked placeholder
+//     frame naming what's needed (see docs/cutscene-art-needed.md).
 //
-// init data: { title, paragraphs: [..], artFlag?, next, nextData? }
+// Layout is measured bottom-up: the body text's minimum size is worked out
+// first (against the no-image budget), then whatever vertical space is left
+// goes to the illustration — so short/landscape phone screens shrink or drop
+// the image before they ever let text collide with the button.
+//
+// init data: { title, paragraphs: [..], art?, artFlag?, next, nextData? }
 
 export default class StoryScene extends Phaser.Scene {
   constructor() {
@@ -22,22 +29,67 @@ export default class StoryScene extends Phaser.Scene {
     starfield(this, Math.floor((width * height) / 11000));
     const cx = width / 2;
     const d = this.data_;
+    const BOTTOM_RESERVE = 90; // button + margin
+    const GAP = 14;
 
-    let y = height * 0.12;
-    this.add
+    let y = Math.max(14, height * 0.08);
+    const titleSize = Math.min(28, width / 16, height / 13);
+    const title = this.add
       .text(cx, y, d.title, {
         fontFamily: FONTS.body,
-        fontSize: Math.min(28, width / 16) + 'px',
+        fontSize: titleSize + 'px',
         color: '#d9b968',
         align: 'center',
         wordWrap: { width: width - 60 },
       })
       .setOrigin(0.5, 0);
-    y += Math.min(28, width / 16) * 2 + 8;
+    y += title.height + 8;
 
-    if (d.artFlag) {
+    // 1. Work out the body text's minimum footprint against the no-image
+    // budget, shrinking the font until it fits (or hits the readability floor).
+    const maxTextWidth = Math.min(560, width - 50);
+    const body = d.paragraphs.join('\n\n');
+    let fsize = Math.min(17, width / 24);
+    const bodyText = this.add
+      .text(0, 0, body, {
+        fontFamily: FONTS.body,
+        fontSize: fsize + 'px',
+        color: COLORS.text,
+        align: 'center',
+        wordWrap: { width: maxTextWidth },
+        lineSpacing: 5,
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(1)
+      .setVisible(false);
+    const availableNoImage = height - y - BOTTOM_RESERVE;
+    while (bodyText.height > availableNoImage && fsize > 10) {
+      fsize -= 1;
+      bodyText.setFontSize(fsize + 'px');
+      bodyText.setLineSpacing(fsize < 14 ? 3 : 5);
+    }
+    const textH = bodyText.height;
+
+    // 2. Whatever vertical space remains goes to the illustration.
+    const imgAreaH = height - y - textH - BOTTOM_RESERVE - GAP;
+
+    if (d.art && imgAreaH > 40) {
+      const tex = this.textures.exists(d.art) ? this.textures.get(d.art) : null;
+      const src = tex?.source?.[0];
+      const imgAspect = src && src.height ? src.width / src.height : 16 / 9;
+      const maxW = Math.min(720, width - 40);
+      let fw = maxW;
+      let fh = fw / imgAspect;
+      if (fh > imgAreaH) {
+        fh = imgAreaH;
+        fw = fh * imgAspect;
+      }
+      this.add.image(cx, y + fh / 2, d.art).setDisplaySize(fw, fh).setDepth(1);
+      this.add.rectangle(cx, y + fh / 2, fw, fh).setStrokeStyle(2, COLORS.panelLine).setDepth(2);
+      y += fh + GAP;
+    } else if (d.artFlag && imgAreaH > 40) {
       const fw = Math.min(420, width - 60);
-      const fh = Math.min(fw * 0.42, height * 0.26);
+      const fh = Math.min(fw * 0.42, imgAreaH);
       const frame = this.add.rectangle(cx, y + fh / 2, fw, fh, 0x0d1226, 1).setStrokeStyle(1, COLORS.panelLine);
       this.add
         .text(cx, y + fh / 2, `[ illustration planned ]\n${d.artFlag}`, {
@@ -49,31 +101,13 @@ export default class StoryScene extends Phaser.Scene {
           wordWrap: { width: fw - 30 },
         })
         .setOrigin(0.5);
-      y += fh + 18;
+      y += fh + GAP;
       frame.setDepth(1);
     }
 
-    const body = d.paragraphs.join('\n\n');
-    const bodyText = this.add
-      .text(cx, y, body, {
-        fontFamily: FONTS.body,
-        fontSize: Math.min(17, width / 24) + 'px',
-        color: COLORS.text,
-        align: 'center',
-        wordWrap: { width: Math.min(560, width - 50) },
-        lineSpacing: 5,
-      })
-      .setOrigin(0.5, 0)
-      .setDepth(1);
-    // shrink to fit above the continue button on short screens
-    let size = Math.min(17, width / 24);
-    while (y + bodyText.height > height - 95 && size > 11) {
-      size -= 1;
-      bodyText.setFontSize(size + 'px');
-      bodyText.setLineSpacing(3);
-    }
+    bodyText.setPosition(cx, y).setVisible(true);
 
-    makeTextButton(this, cx, height - 60, Math.min(260, width - 80), 52, d.button ?? 'Continue', () => {
+    makeTextButton(this, cx, height - 46, Math.min(260, width - 80), 52, d.button ?? 'Continue', () => {
       this.scene.start(d.next, d.nextData ?? {});
     });
   }

@@ -55,6 +55,10 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('rock_cluster', 'assets/tiles/rock_cluster.png');
     this.load.image('large_boulder', 'assets/tiles/large_boulder.png');
     this.load.image('large_pebble', 'assets/tiles/large_pebble.png');
+
+    // narrative illustrations (generated externally, see docs/cutscene-art-needed.md)
+    this.load.image('art-cuivienen-awakening', 'assets/art/cuivienen-awakening.jpg');
+    this.load.image('art-call-of-orome', 'assets/art/cuivienen-call-of-orome.jpg');
   }
 
   create() {
