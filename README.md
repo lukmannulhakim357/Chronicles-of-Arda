@@ -37,6 +37,18 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
 
 ## What's playable
 
+- **Homepage → Profile → Campaign → Character** menu flow:
+  1. **New Game** prompts for a profile name (the save file's name — not an
+     in-game character nickname) or **Load Game** lists existing profiles.
+  2. **Campaign select** shows every campaign as a card: unlocked ones (playable
+     now, or already played) are clear and bright; campaigns still gated
+     behind an earlier one show dim with just "🔒 Locked" — no title revealed.
+  3. Each campaign has **4 character slots**. An empty slot creates a
+     character (kindred + class); an occupied one shows its progress and
+     resumes with one tap. Mortal races would reroll each new campaign while
+     Elves persist as the same character (concept doc §4, §9) — this build
+     ships a single campaign, so that carry-over becomes visible once a
+     second one exists.
 - **Character creation** — choose a kindred (Vanyar / Noldor / Teleri, each
   with lore-correct hair & garb) and one of the 8 classes (4-stat model:
   VIT / MAG / STR / DEX).
@@ -50,14 +62,16 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
 - **The Road West** — the fixed 10-waypoint journey map. Waypoints 2–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
-- **Save system** — free save anywhere from the pause menu, plus autosave on
-  zone entry and at every quest milestone. One tap to continue from the title.
+- **Save system** — a profile can hold up to 4 characters per campaign; free
+  save anywhere from the pause menu, plus autosave on zone entry and at every
+  quest milestone.
 
 ## Controls
 
 - **Touch (primary)**: virtual joystick — touch and drag anywhere on the left
   half of the screen; contextual button (Talk / Examine / Approach) and Attack
-  button bottom-right; ☰ opens the pause menu (Save / Road West / Quit).
+  button bottom-right; ☰ opens the menu (Save / Road West / Switch Character /
+  Homepage).
 - **Keyboard (desktop testing)**: WASD/arrows to move, `E` action / advance
   dialogue, `Space` attack, `1`–`3` pick dialogue choices, `Esc` pause.
 
@@ -83,11 +97,14 @@ npm run preview    # serve the production build
 ```
 public/assets/characters/  composed LPC character spritesheets (see tools/)
 public/assets/tiles/       terrain & decor tiles (see CREDITS.md)
-src/scenes/                Boot, Title, Creation, Story, World, Journey, UI
+public/assets/art/         narrative illustrations (see CREDITS.md)
+src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
+                            Creation, Story, World, Journey, UI
 src/world/                 zone builders (cuivienen)
 src/quests/                quest scripts (vanishing)
-src/systems/               save system, game state
-src/data/                  kindreds, classes, waypoints
+src/systems/               save system (profiles/campaigns/slots), game state
+src/data/                  campaigns, kindreds, classes, waypoints
+src/ui/                    shared widgets + the DOM text-input modal
 tools/compose-characters.mjs  rebuilds character sheets from LPC layers
 ```
 

@@ -273,7 +273,7 @@ export default class UIScene extends Phaser.Scene {
     const bw = Math.min(300, width - 60);
     const items = [veil];
     const mk = (i, label, cb) =>
-      items.push(makeTextButton(this, width / 2, height / 2 - 90 + i * 62, bw, 52, label, cb).setDepth(96));
+      items.push(makeTextButton(this, width / 2, height / 2 - 108 + i * 58, bw, 50, label, cb).setDepth(96));
     mk(0, 'Resume', () => this.closePause());
     mk(1, 'Save', () => {
       this.game.events.emit(EV.MENU_SAVE);
@@ -283,7 +283,12 @@ export default class UIScene extends Phaser.Scene {
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'Journey' });
     });
-    mk(3, 'Save & Quit to Title', () => {
+    mk(3, 'Switch Character', () => {
+      this.game.events.emit(EV.MENU_SAVE);
+      this.closePause();
+      this.game.events.emit(EV.MENU_QUIT, { to: 'CharacterSlot' });
+    });
+    mk(4, 'Save & Quit to Homepage', () => {
       this.game.events.emit(EV.MENU_SAVE);
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'Title' });

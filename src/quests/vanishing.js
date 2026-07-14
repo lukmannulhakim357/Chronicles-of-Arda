@@ -466,7 +466,7 @@ export default class VanishingQuest {
 
   autosave(where) {
     const s = this.scene.captureState();
-    SaveSystem.save(s, { where });
+    SaveSystem.saveActive(this.scene, s, { where });
   }
 
   // interactables the WorldScene should offer right now

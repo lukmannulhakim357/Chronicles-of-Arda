@@ -1,5 +1,7 @@
-// Full-quest end-to-end test: plays "The Vanishing" from creation to the
-// Journey map, using keyboard input + test teleports between legs.
+// Full-quest end-to-end test: Homepage -> New Game -> profile -> campaign
+// select -> character slot -> creation -> plays "The Vanishing" through to
+// the Journey map, using keyboard input + test teleports between legs.
+// Then verifies reload -> Load Game -> resume works off the new profile store.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
@@ -30,9 +32,18 @@ await page.evaluate(() => localStorage.clear());
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(2200);
 
-// title -> creation -> Noldor -> Loresinger
-await page.mouse.click(400, 225);
+// Homepage -> New Game -> profile name -> Campaign Select -> Character Slot
+await page.mouse.click(400, 225); // New Game
+await page.waitForTimeout(600);
+await page.fill('input[type="text"]', 'QA Tester');
+await page.click('button:has-text("Begin")');
 await page.waitForTimeout(900);
+await page.mouse.click(135, 160); // The Great Journey card (leftmost, unlocked)
+await page.waitForTimeout(900);
+await page.mouse.click(400, 110); // empty Slot 1 -> Creation
+await page.waitForTimeout(900);
+
+// creation -> Noldor -> Loresinger
 await page.mouse.click(400, 262); // Noldor card (2nd)
 await page.waitForTimeout(900);
 await page.mouse.click(400 - 387 + 93 + 2 * 196, 120); // Loresinger (3rd col)
@@ -98,16 +109,26 @@ await page.mouse.click(400, 390);
 await page.waitForTimeout(1400);
 await page.screenshot({ path: `${OUT}/17-journey.png` });
 
-// reload -> Continue resumes on Journey map
+// reload -> Homepage -> Load Game -> resume on Journey map
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(2200);
 await page.screenshot({ path: `${OUT}/18-title-continue.png` });
-await page.mouse.click(400, 225); // Continue button
+await page.mouse.click(400, 295); // Load Game
+await page.waitForTimeout(700);
+await page.screenshot({ path: `${OUT}/18b-load-panel.png` });
+await page.mouse.click(400, 226); // first (only) profile row
+await page.waitForTimeout(900);
+await page.mouse.click(135, 160); // The Great Journey card
+await page.waitForTimeout(900);
+await page.screenshot({ path: `${OUT}/18c-slots-after-reload.png` });
+await page.mouse.click(400, 110); // occupied Slot 1 -> continue
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${OUT}/19-resumed.png` });
 
-const save = await page.evaluate(() => JSON.parse(localStorage.getItem('arda.great-journey.v1')));
-console.log('FINAL SAVE:', JSON.stringify({ zone: save.zone, waypointIndex: save.waypointIndex, stage: save.quest.stage, flags: save.quest.flags }));
+const profiles = await page.evaluate(() => JSON.parse(localStorage.getItem('arda.profiles.v1')));
+const p = profiles[0];
+const slot = p.campaigns.greatJourney.slots[0];
+console.log('FINAL SAVE:', JSON.stringify({ zone: slot.zone, waypointIndex: slot.waypointIndex, stage: slot.quest.stage, flags: slot.quest.flags, lastWhere: slot.lastWhere }));
 console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
 process.exit(errors.filter((e) => !e.includes('404')).length ? 1 : 0);

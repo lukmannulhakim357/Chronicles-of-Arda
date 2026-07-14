@@ -35,6 +35,31 @@ export function makeTextButton(scene, x, y, width, height, label, onTap, opts = 
   return g;
 }
 
+// Standalone toast for menu scenes that don't run UIScene (Title,
+// CampaignSelect, CharacterSlot). WorldScene uses the EV.TOAST event into
+// UIScene instead — this is the same look, self-contained.
+export function toast(scene, text, duration = 2400) {
+  const { width, height } = scene.scale;
+  const t = scene.add
+    .text(width / 2, height * 0.12, text, {
+      fontFamily: FONTS.body,
+      fontSize: '14px',
+      color: '#f5eeda',
+      align: 'center',
+      backgroundColor: 'rgba(10,17,40,0.88)',
+      padding: { x: 14, y: 8 },
+      wordWrap: { width: width - 80 },
+    })
+    .setOrigin(0.5)
+    .setDepth(500)
+    .setAlpha(0);
+  scene.tweens.add({ targets: t, alpha: 1, y: t.y + 6, duration: 220 });
+  scene.time.delayedCall(duration, () =>
+    scene.tweens.add({ targets: t, alpha: 0, duration: 300, onComplete: () => t.destroy() })
+  );
+  return t;
+}
+
 export function starfield(scene, count = 90) {
   // little twinkling stars for menu/story backgrounds
   if (!scene.textures.exists('px-star')) {
