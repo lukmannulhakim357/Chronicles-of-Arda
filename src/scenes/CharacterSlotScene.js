@@ -96,7 +96,7 @@ export default class CharacterSlotScene extends Phaser.Scene {
     spr.setScale(Math.min(1.4, h / 78));
 
     this.add
-      .text(cx - w / 2 + 80, y - h / 2 + 10, `${kindred.name} ${klass.name}`, {
+      .text(cx - w / 2 + 80, y - h / 2 + 10, `${kindred.name} ${klass.name}  •  Lv. ${character.level ?? 1}`, {
         fontFamily: FONTS.body,
         fontSize: '16px',
         color: '#e8e4d8',

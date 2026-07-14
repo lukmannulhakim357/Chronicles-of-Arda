@@ -7,6 +7,7 @@ import { derivedStats } from '../data/classes.js';
 import { WAYPOINTS } from '../data/waypoints.js';
 import { ZONES } from '../world/zones.js';
 import { tilesToPx } from '../world/coords.js';
+import { xpToNextLevel } from '../data/leveling.js';
 
 const SPEED = 150;
 
@@ -79,14 +80,14 @@ export default class WorldScene extends Phaser.Scene {
     g.on(EV.ATTACK_PRESSED, this.onAttack, this);
     g.on(EV.MENU_SAVE, this.onMenuSave, this);
     g.on(EV.MENU_QUIT, this.onMenuQuit, this);
-    g.on(EV.MENU_INVENTORY, this.onOpenInventory, this);
+    g.on(EV.MENU_CHARACTER, this.onOpenCharacter, this);
     this.events.on(Phaser.Scenes.Events.RESUME, this.onResumeFromOverlay, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
       g.off(EV.ACTION_PRESSED, this.onAction, this);
       g.off(EV.ATTACK_PRESSED, this.onAttack, this);
       g.off(EV.MENU_SAVE, this.onMenuSave, this);
       g.off(EV.MENU_QUIT, this.onMenuQuit, this);
-      g.off(EV.MENU_INVENTORY, this.onOpenInventory, this);
+      g.off(EV.MENU_CHARACTER, this.onOpenCharacter, this);
       this.scale.off('resize', this.onResize, this);
     });
 
@@ -96,6 +97,7 @@ export default class WorldScene extends Phaser.Scene {
     this.time.delayedCall(300, () => {
       SaveSystem.saveActive(this, this.captureState(), { where: this.zoneName });
       this.emitHp();
+      this.emitXp();
       this.quest.begin();
     });
   }
@@ -156,20 +158,30 @@ export default class WorldScene extends Phaser.Scene {
     this.scene.start(to);
   }
 
-  onOpenInventory() {
+  onOpenCharacter(data) {
     this.captureState();
     this.scene.pause();
     this.scene.pause('UI');
-    this.scene.launch('Inventory');
+    this.scene.launch('Character', data ?? {});
   }
 
-  // equipment may have changed in Inventory while World was paused —
-  // refresh derived stats and clamp HP down if max HP dropped
+  // scripted tutorial moment (Oromë naming the Eldar) — opens straight to
+  // the Stats tab with the level-up banner shown
+  openCharacterForLevelUp() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', { tab: 'stats', levelUp: true });
+  }
+
+  // equipment/stats may have changed in the Character scene while World
+  // was paused — refresh derived stats and clamp HP down if max HP dropped
   onResumeFromOverlay() {
     this.state = getState(this);
     this.stats = derivedStats(effectiveStats(this.state));
     if (this.state.hp > this.stats.maxHp) this.state.hp = this.stats.maxHp;
     this.emitHp();
+    this.emitXp();
   }
 
   // ---------- hp ----------
@@ -184,6 +196,14 @@ export default class WorldScene extends Phaser.Scene {
 
   emitHp() {
     this.game.events.emit(EV.HP, { hp: this.state.hp, maxHp: this.stats.maxHp });
+  }
+
+  emitXp() {
+    this.game.events.emit(EV.XP, {
+      level: this.state.level,
+      xp: this.state.xp,
+      xpToNext: xpToNextLevel(this.state.level),
+    });
   }
 
   damagePlayer(amount) {

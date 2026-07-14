@@ -20,6 +20,10 @@ export function newGameState(kindredId, classId) {
     seenIntro: false,
     equipment: { armor: null, weapon: null, trinket: null },
     inventory: [],
+    level: 1,
+    xp: 0,
+    statPoints: 0,
+    skillPoints: 0,
   };
 }
 

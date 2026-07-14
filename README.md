@@ -73,6 +73,15 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
   bonus immediately (Woven Steppe Cloak: +2 DEX, Herder's Jerkin: +3 VIT).
   Weapon and Trinket stay locked — Waypoint 3 introduces weapons alongside
   a first taste of basic-attack combat.
+- **EXP & Leveling** — introduced at the very moment Oromë names you one of
+  the Eldar: surviving the shadow-servant and his departure together grant
+  exactly enough EXP to level up on the spot (concept doc §16.6 formula),
+  and Oromë's own dialogue doubles as the in-fiction tutorial for spending
+  the 3 stat points you gain each level. The **Character** screen (pause
+  menu, or opened automatically on level-up) now has two tabs — **Gear**
+  (the old Inventory) and **Stats**, where you freely allocate points across
+  VIT/MAG/STR/DEX with a live Max HP/MP preview before confirming. The HUD
+  gains a level + XP bar under the HP bar.
 - **The Road West** — the fixed 10-waypoint journey map. Waypoints 3–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
@@ -84,7 +93,7 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
 
 - **Touch (primary)**: virtual joystick — touch and drag anywhere on the left
   half of the screen; contextual button (Talk / Examine / Approach) and Attack
-  button bottom-right; ☰ opens the menu (Inventory / Save / Road West /
+  button bottom-right; ☰ opens the menu (Character / Save / Road West /
   Switch Character / Homepage).
 - **Keyboard (desktop testing)**: WASD/arrows to move, `E` action / advance
   dialogue, `Space` attack, `1`–`3` pick dialogue choices, `Esc` pause.
@@ -113,11 +122,11 @@ public/assets/characters/  composed LPC character spritesheets (see tools/)
 public/assets/tiles/       terrain & decor tiles (see CREDITS.md)
 public/assets/art/         narrative illustrations (see CREDITS.md)
 src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
-                            Creation, Story, World, Journey, UI, Inventory
+                            Creation, Story, World, Journey, UI, Character
 src/world/                 zone builders (cuivienen, steppes) + the zone registry
 src/quests/                quest scripts (vanishing, stragglers)
 src/systems/               save system (profiles/campaigns/slots), game state
-src/data/                  campaigns, kindreds, classes, waypoints, items
+src/data/                  campaigns, kindreds, classes, waypoints, items, leveling
 src/ui/                    shared widgets + the DOM text-input modal
 tools/compose-characters.mjs  rebuilds character sheets from LPC layers
 ```

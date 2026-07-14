@@ -98,8 +98,9 @@ const baseMaxHp = await page.evaluate(() => {
 });
 console.log('maxHp before equip:', baseMaxHp);
 
-// equip the first carried item (row ~ y0 = listTop+26; listTop = slotY(66)+slotH/2(46)+24=136; y0=162; row0 center = y0+28=190)
-await page.mouse.click(400, 190);
+// equip the first carried item (Gear tab under the Gear/Stats tab row):
+// bodyTop = tabY(42)+30=72; slotY = bodyTop+slotH/2(46)+6=124; listTop = slotY+46+24=194; y0 = listTop+26=220; row0 center = y0+rowH/2(28)=248
+await page.mouse.click(400, 248);
 await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}/06-after-equip.png` });
 
@@ -107,7 +108,7 @@ s = await readState();
 console.log('after equip 1 — equipment:', JSON.stringify(s.equipment), 'inventory:', JSON.stringify(s.inventory));
 
 // equip the second carried item (now sitting at slot 0 again since equip() swaps)
-await page.mouse.click(400, 190);
+await page.mouse.click(400, 248);
 await page.waitForTimeout(500);
 s = await readState();
 console.log('after equip 2 (swap) — equipment:', JSON.stringify(s.equipment), 'inventory:', JSON.stringify(s.inventory));

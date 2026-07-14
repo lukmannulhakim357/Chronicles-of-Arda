@@ -1,6 +1,8 @@
 // Full-quest end-to-end test: Homepage -> New Game -> profile -> campaign
 // select -> character slot -> creation -> plays "The Vanishing" through to
 // the Journey map, using keyboard input + test teleports between legs.
+// Covers the level-up moment at Oromë's departure (grants XP crossing into
+// level 2, opens the Character/Stats screen) and the level/statPoints HUD.
 // Then verifies reload -> Load Game -> resume works off the new profile store.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
@@ -91,7 +93,13 @@ await page.screenshot({ path: `${OUT}/14-choice.png` });
 await page.keyboard.press('1'); // trust
 await page.waitForTimeout(600);
 await tapSheet(1); // Oromë reply
-await page.waitForTimeout(600);
+await page.waitForTimeout(1300); // 700ms scripted delay -> growth/level-up tutorial dialogue
+await tapSheet(2); // Oromë's growth lines (this grant crosses into level 2)
+await page.waitForTimeout(900); // Character scene opens (World+UI paused)
+console.log('level/xp at level-up screen:', await page.evaluate(`${world()}.state.level + '/' + ${world()}.state.xp + '/' + ${world()}.state.statPoints`));
+await page.screenshot({ path: `${OUT}/14b-levelup.png` });
+await page.mouse.click(400, 410); // Close the level-up/stats screen
+await page.waitForTimeout(900); // World resumes -> Náro's dialogue fires
 await tapSheet(2); // Náro's two lines
 console.log('stage after orome:', await stage());
 await page.screenshot({ path: `${OUT}/15-follow.png` });

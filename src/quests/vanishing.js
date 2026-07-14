@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { EV, TILE } from '../config.js';
 import { tilesToPx, POINTS } from '../world/cuivienen.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { grantXp } from '../data/leveling.js';
 
 // Quest 1 — "The Vanishing" (waypoint 1, Cuiviénen).
 //   0  speak with Elder Alassë at the camp
@@ -316,6 +317,8 @@ export default class VanishingQuest {
     this.scene.time.delayedCall(1400, () => {
       this.setStage(3);
       this.scene.healPlayer();
+      grantXp(this.state, 20);
+      this.scene.emitXp();
       this.spawnOrome(false);
       this.autosave('The rocks above the mere');
     });
@@ -413,7 +416,30 @@ export default class VanishingQuest {
     }
     this.oromeInteractable = null;
     this.autosave('The rocks above the mere');
-    this.dialogueNaro();
+
+    const gained = grantXp(this.state, 30);
+    this.scene.emitXp();
+    if (gained > 0) {
+      this.scene.time.delayedCall(700, () => {
+        this.dialogue(
+          [
+            {
+              speaker: 'Oromë',
+              text: 'Feel that? Strength answering the road already — you are stronger than when you woke, star-kindled, and stronger still than you will be tomorrow.',
+            },
+            { speaker: 'Oromë', text: 'That growth is yours to shape. Choose where it settles.' },
+          ],
+          null,
+          () => {
+            this.autosave('The rocks above the mere');
+            this.scene.events.once(Phaser.Scenes.Events.RESUME, () => this.dialogueNaro());
+            this.scene.openCharacterForLevelUp();
+          }
+        );
+      });
+    } else {
+      this.dialogueNaro();
+    }
   }
 
   dialogueNaro() {
