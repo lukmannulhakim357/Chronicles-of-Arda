@@ -1,6 +1,6 @@
 # Chronicles of Arda
 
-A top-down pixel-art RPG set across the full history of Arda (Tolkien's
+A top-down pixel art RPG set across the full history of Arda (Tolkien's
 Middle-earth), built mobile-first with [Phaser 3](https://phaser.io) +
 [Vite](https://vite.dev) — no app install required, it runs straight in the
 browser. Play it live: **https://lukmannulhakim357.github.io/Chronicles-of-Arda/**
