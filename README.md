@@ -33,6 +33,14 @@ build directives: [`docs/great-journey-build-prompt.md`](docs/great-journey-buil
 - **Keyboard (desktop testing)**: WASD/arrows to move, `E` action / advance
   dialogue, `Space` attack, `1`–`3` pick dialogue choices, `Esc` pause.
 
+## Main di HP / Play on mobile
+
+Panduan lengkap (GitHub Pages, PC + WiFi, atau Termux di Android):
+**[docs/cara-main-di-hp.md](docs/cara-main-di-hp.md)**. Versi singkat: aktifkan
+GitHub Pages (Settings → Pages → Source: *GitHub Actions*), lalu buka
+`https://lukmannulhakim357.github.io/Chronicles-of-Arda/` di browser HP —
+tidak perlu install aplikasi apa pun.
+
 ## Run it
 
 ```bash
