@@ -47,7 +47,8 @@ export default class CreationScene extends Phaser.Scene {
 
     const top = 96;
     const gap = 12;
-    const ch = Math.min(118, (height - top - 20 - gap * 2) / 3);
+    const bottomReserve = 66;
+    const ch = Math.min(118, (height - top - bottomReserve - gap * 2) / 3);
     const cw = Math.min(520, width - 24);
 
     KINDREDS.forEach((k, i) => {
@@ -89,6 +90,8 @@ export default class CreationScene extends Phaser.Scene {
         this.showClasses();
       });
     });
+
+    makeTextButton(this, cx, height - 30, 160, 42, '← Back', () => this.scene.start('CharacterSlot'));
   }
 
   showClasses() {
@@ -158,10 +161,17 @@ export default class CreationScene extends Phaser.Scene {
   confirm(klass) {
     const state = newGameState(this.kindredId, klass.id);
     setState(this, state);
-    SaveSystem.save(state, { where: 'The shores of Cuiviénen' });
+    const profileId = this.registry.get('profileId');
+    const campaignId = this.registry.get('campaignId');
+    const slotIndex = this.registry.get('slotIndex');
+    SaveSystem.setSlot(profileId, campaignId, slotIndex, {
+      ...state,
+      savedAt: Date.now(),
+      lastWhere: 'The shores of Cuiviénen',
+    });
     this.scene.start('Story', {
       title: 'Cuiviénen, the Waters of Awakening',
-      artFlag: 'Opening splash — the mere of Cuiviénen under starlight: dark water, silver reflections, the first Elves waking beneath Varda’s new stars.',
+      art: 'art-cuivienen-awakening',
       paragraphs: [
         'Before Sun, before Moon, there is only starlight — and the mere of Cuiviénen, where your people woke beneath it.',
         'But of late, those who wander far from the water do not come back. The hunters speak of a Rider in the dark, and of shadows that are not shadows.',

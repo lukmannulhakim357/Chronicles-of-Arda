@@ -58,5 +58,3 @@ export const COLORS = {
 export const FONTS = {
   body: 'Georgia, "Times New Roman", serif',
 };
-
-export const SAVE_KEY = 'arda.great-journey.v1';

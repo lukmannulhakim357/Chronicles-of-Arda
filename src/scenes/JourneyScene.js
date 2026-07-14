@@ -25,7 +25,7 @@ export default class JourneyScene extends Phaser.Scene {
     const s = { ...this.state, zone: '__journey__' };
     setState(this, s);
     this.state = s;
-    SaveSystem.save(s, { where: 'The Road West' });
+    SaveSystem.saveActive(this, s, { where: 'The Road West' });
 
     this.cameras.main.setBackgroundColor('#05060f');
     this.build();
@@ -42,6 +42,17 @@ export default class JourneyScene extends Phaser.Scene {
         color: '#d9b968',
       })
       .setOrigin(0.5, 0);
+
+    this.add
+      .text(10, 10, '☰', {
+        fontFamily: 'sans-serif',
+        fontSize: '24px',
+        color: '#e8e4d8',
+        backgroundColor: 'rgba(16,24,48,0.75)',
+        padding: { x: 10, y: 4 },
+      })
+      .setInteractive({ useHandCursor: true })
+      .on('pointerup', () => this.openMenu());
 
     const n = WAYPOINTS.length;
     const top = 74;
@@ -127,5 +138,24 @@ export default class JourneyScene extends Phaser.Scene {
         next: 'Journey',
       });
     }
+  }
+
+  openMenu() {
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const cy = height / 2;
+    const veil = this.add.rectangle(cx, cy, width, height, 0x05060f, 0.82).setInteractive().setDepth(300);
+    const bw = Math.min(280, width - 60);
+    const items = [veil];
+    const mk = (i, label, cb) => items.push(makeTextButton(this, cx, cy - 76 + i * 64, bw, 52, label, cb).setDepth(301));
+    mk(0, 'Resume', () => items.forEach((o) => o.destroy()));
+    mk(1, 'Switch Character', () => {
+      items.forEach((o) => o.destroy());
+      this.scene.start('CharacterSlot');
+    });
+    mk(2, 'Homepage', () => {
+      items.forEach((o) => o.destroy());
+      this.scene.start('Title');
+    });
   }
 }

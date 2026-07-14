@@ -85,7 +85,7 @@ export default class WorldScene extends Phaser.Scene {
 
     // autosave on zone entry (concept doc §15.3)
     this.time.delayedCall(300, () => {
-      SaveSystem.save(this.captureState(), { where: 'Cuiviénen' });
+      SaveSystem.saveActive(this, this.captureState(), { where: 'Cuiviénen' });
       this.emitHp();
       this.quest.begin();
     });
@@ -122,7 +122,7 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   onMenuSave() {
-    SaveSystem.save(this.captureState(), { where: 'Cuiviénen' });
+    SaveSystem.saveActive(this, this.captureState(), { where: 'Cuiviénen' });
     this.game.events.emit(EV.TOAST, { text: 'Journey saved.' });
   }
 

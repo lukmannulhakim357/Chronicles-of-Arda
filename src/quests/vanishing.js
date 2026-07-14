@@ -450,7 +450,7 @@ export default class VanishingQuest {
           this.scene.scene.stop('UI');
           this.scene.scene.start('Story', {
             title: 'The Summons of the Valar',
-            artFlag: 'The coming of Oromë — the Vala on Nahar amid fleeing shadows, the first light of Aman on an elven plain.',
+            art: 'art-call-of-orome',
             paragraphs: [
               'Waypoint 1 — Cuiviénen: complete.',
               'The Quest of “The Vanishing” is ended. Náro is home, and the name Eldar now belongs to your people.',
@@ -466,7 +466,7 @@ export default class VanishingQuest {
 
   autosave(where) {
     const s = this.scene.captureState();
-    SaveSystem.save(s, { where });
+    SaveSystem.saveActive(this.scene, s, { where });
   }
 
   // interactables the WorldScene should offer right now

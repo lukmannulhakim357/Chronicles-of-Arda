@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import TitleScene from './scenes/TitleScene.js';
+import CampaignSelectScene from './scenes/CampaignSelectScene.js';
+import CharacterSlotScene from './scenes/CharacterSlotScene.js';
 import CreationScene from './scenes/CreationScene.js';
 import StoryScene from './scenes/StoryScene.js';
 import WorldScene from './scenes/WorldScene.js';
@@ -27,7 +29,17 @@ const config = {
   input: {
     activePointers: 3, // joystick + action button + one spare
   },
-  scene: [BootScene, TitleScene, CreationScene, StoryScene, WorldScene, JourneyScene, UIScene],
+  scene: [
+    BootScene,
+    TitleScene,
+    CampaignSelectScene,
+    CharacterSlotScene,
+    CreationScene,
+    StoryScene,
+    WorldScene,
+    JourneyScene,
+    UIScene,
+  ],
 };
 
 const game = new Phaser.Game(config);
