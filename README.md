@@ -1,6 +1,6 @@
 # Chronicles of Arda
 
-A top-down pixel-art RPG set across the history of Arda, built mobile-first
+A top-down pixel art RPG set across the history of Arda, built mobile-first
 with [Phaser 3](https://phaser.io) + [Vite](https://vite.dev).
 
 **This build: the Elf origin campaign — “The Great Journey”** (vertical
