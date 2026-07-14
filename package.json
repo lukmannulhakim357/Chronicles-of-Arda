@@ -1,0 +1,24 @@
+{
+  "name": "chronicles-of-arda",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chronicles of Arda — top-down pixel-art RPG. Prototype: the Elf origin campaign 'The Great Journey'.",
+  "scripts": {
+    "dev": "vite",
+    "dev:host": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "compose:characters": "node tools/compose-characters.mjs"
+  },
+  "dependencies": {
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "vite": "^8.1.4"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.61.1",
+    "sharp": "^0.35.3"
+  }
+}
