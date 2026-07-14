@@ -1,0 +1,86 @@
+// The fixed 10-waypoint chain of the Great Journey (concept doc §13.1).
+// `built` marks which waypoints exist as playable zones in this build;
+// the rest appear on the Journey map as the road ahead.
+
+export const WAYPOINTS = [
+  {
+    id: 'cuivienen',
+    name: 'Cuiviénen',
+    terrain: 'Lakeshore under starlight',
+    beat: 'The Waters of Awakening. Kin have begun to vanish in the dark.',
+    quest: 'The Vanishing',
+    built: true,
+  },
+  {
+    id: 'steppes',
+    name: 'The Steppes',
+    terrain: 'Open grassland, river fords',
+    beat: 'The first open stretch of the westward march.',
+    quest: 'The Stragglers',
+    built: false,
+  },
+  {
+    id: 'great-forest',
+    name: 'The Great Forest',
+    terrain: 'Dense, dark woodland',
+    beat: 'The host threads a wood with no stars overhead.',
+    quest: 'Lost Before Nightfall',
+    built: false,
+  },
+  {
+    id: 'vales-anduin',
+    name: 'Vales of Anduin',
+    terrain: 'River valley below the mountains',
+    beat: 'Lenwë and his people refuse the crossing and turn south.',
+    quest: "Lenwë's Choice",
+    built: false,
+  },
+  {
+    id: 'hithaeglir',
+    name: 'Misty Mountains',
+    terrain: 'High mountain pass',
+    beat: 'The hardest crossing of the march, with something in the pass.',
+    quest: 'The Pass',
+    built: false,
+  },
+  {
+    id: 'rhovanion',
+    name: 'Rhovanion',
+    terrain: 'Open wild lands',
+    beat: 'Years of walking, hunting, and enduring.',
+    quest: 'The Long Road',
+    built: false,
+  },
+  {
+    id: 'ered-luin',
+    name: 'Ered Luin',
+    terrain: 'The Blue Mountains',
+    beat: 'Strangers of stone and beard already dwell here.',
+    quest: 'First Contact',
+    built: false,
+  },
+  {
+    id: 'beleriand',
+    name: 'Beleriand & Neldoreth',
+    terrain: 'River Sirion valley, deep forest',
+    beat: 'Elwë walks into Nan Elmoth and does not return.',
+    quest: 'The King Is Lost',
+    built: false,
+  },
+  {
+    id: 'falas',
+    name: 'The Falas',
+    terrain: 'The western shore',
+    beat: 'Ossë teaches the host to love the sea.',
+    quest: 'Shipwright and Sea',
+    built: false,
+  },
+  {
+    id: 'crossing',
+    name: 'Crossing to Aman',
+    terrain: 'The Great Sea, via Tol Eressëa',
+    beat: 'Ulmo ferries the host across. Valinor at last.',
+    quest: 'The Crossing',
+    built: false,
+  },
+];
