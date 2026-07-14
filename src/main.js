@@ -8,6 +8,7 @@ import StoryScene from './scenes/StoryScene.js';
 import WorldScene from './scenes/WorldScene.js';
 import JourneyScene from './scenes/JourneyScene.js';
 import UIScene from './scenes/UIScene.js';
+import CharacterScene from './scenes/CharacterScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -39,6 +40,7 @@ const config = {
     WorldScene,
     JourneyScene,
     UIScene,
+    CharacterScene,
   ],
 };
 

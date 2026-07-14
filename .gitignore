@@ -3,3 +3,6 @@ dist/
 .DS_Store
 *.log
 smoke-shots/
+smoke-shots-wp2/
+smoke-shots-inventory/
+smoke-shots-leveling/

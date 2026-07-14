@@ -6,7 +6,7 @@ Middle-earth), built mobile-first with [Phaser 3](https://phaser.io) +
 browser. Play it live: **https://lukmannulhakim357.github.io/Chronicles-of-Arda/**
 
 **Current build: the Elf origin campaign — “The Great Journey”** (vertical
-slice, Waypoint 1 of 10 fully playable). Design source of truth:
+slice, Waypoints 1–2 of 10 fully playable). Design source of truth:
 [`arda-rpg-concept.md`](arda-rpg-concept.md); build directives:
 [`docs/great-journey-build-prompt.md`](docs/great-journey-build-prompt.md).
 
@@ -21,8 +21,8 @@ slice, Waypoint 1 of 10 fully playable). Design source of truth:
 | Waypoint | Status |
 |---|---|
 | 1. Cuiviénen — "The Vanishing" | ✅ playable end-to-end |
-| 2. The Steppes | 📋 planned (next up) |
-| 3. The Great Forest | 📋 planned |
+| 2. The Steppes — "The Stragglers" | ✅ playable end-to-end |
+| 3. The Great Forest | 📋 planned (next up) |
 | 4. Vales of Anduin — "Lenwë's Choice" | 📋 planned |
 | 5. Misty Mountains | 📋 planned |
 | 6. Rhovanion | 📋 planned |
@@ -59,7 +59,30 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
   3. Drive off (or survive) a shadow-servant of Melkor
   4. The coming of Oromë — dialogue with a choice that's saved to your story
   5. Walk Náro home; the summons West ends the waypoint
-- **The Road West** — the fixed 10-waypoint journey map. Waypoints 2–10 are
+- **Waypoint 2 — The Steppes**, fully playable: open grassland split by a
+  river, and the quest **“The Stragglers”** end-to-end — no combat, per the
+  concept doc's own framing of this waypoint as simpler filler content:
+  1. Speak with Míriel, fallen behind the host
+  2. Escort her west; forage and hunt three supply spots along the way
+  3. Lead her across the ford and rejoin the host — she and Tarion each
+     gift you a piece of armor, introducing **Inventory & Equipment**
+- **Inventory & Equipment** — introduced this waypoint as the first system
+  in a build-by-build gameplay tutorial (The Great Journey doubles as an
+  onboarding arc): Armor / Weapon / Trinket slots, open via the pause menu.
+  Equipping swaps gear in and out of your carry list and applies its stat
+  bonus immediately (Woven Steppe Cloak: +2 DEX, Herder's Jerkin: +3 VIT).
+  Weapon and Trinket stay locked — Waypoint 3 introduces weapons alongside
+  a first taste of basic-attack combat.
+- **EXP & Leveling** — introduced at the very moment Oromë names you one of
+  the Eldar: surviving the shadow-servant and his departure together grant
+  exactly enough EXP to level up on the spot (concept doc §16.6 formula),
+  and Oromë's own dialogue doubles as the in-fiction tutorial for spending
+  the 3 stat points you gain each level. The **Character** screen (pause
+  menu, or opened automatically on level-up) now has two tabs — **Gear**
+  (the old Inventory) and **Stats**, where you freely allocate points across
+  VIT/MAG/STR/DEX with a live Max HP/MP preview before confirming. The HUD
+  gains a level + XP bar under the HP bar.
+- **The Road West** — the fixed 10-waypoint journey map. Waypoints 3–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
 - **Save system** — a profile can hold up to 4 characters per campaign; free
@@ -70,8 +93,8 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
 
 - **Touch (primary)**: virtual joystick — touch and drag anywhere on the left
   half of the screen; contextual button (Talk / Examine / Approach) and Attack
-  button bottom-right; ☰ opens the menu (Save / Road West / Switch Character /
-  Homepage).
+  button bottom-right; ☰ opens the menu (Character / Save / Road West /
+  Switch Character / Homepage).
 - **Keyboard (desktop testing)**: WASD/arrows to move, `E` action / advance
   dialogue, `Space` attack, `1`–`3` pick dialogue choices, `Esc` pause.
 
@@ -99,11 +122,11 @@ public/assets/characters/  composed LPC character spritesheets (see tools/)
 public/assets/tiles/       terrain & decor tiles (see CREDITS.md)
 public/assets/art/         narrative illustrations (see CREDITS.md)
 src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
-                            Creation, Story, World, Journey, UI
-src/world/                 zone builders (cuivienen)
-src/quests/                quest scripts (vanishing)
+                            Creation, Story, World, Journey, UI, Character
+src/world/                 zone builders (cuivienen, steppes) + the zone registry
+src/quests/                quest scripts (vanishing, stragglers)
 src/systems/               save system (profiles/campaigns/slots), game state
-src/data/                  campaigns, kindreds, classes, waypoints
+src/data/                  campaigns, kindreds, classes, waypoints, items, leveling
 src/ui/                    shared widgets + the DOM text-input modal
 tools/compose-characters.mjs  rebuilds character sheets from LPC layers
 ```
@@ -125,7 +148,7 @@ marked placeholder frame in-game until they're ready.
 
 ## Roadmap (next builds)
 
-1. Waypoint 2 — The Steppes (escort + hunting/foraging quest)
+1. Waypoint 3 — The Great Forest (guide stragglers back to the path by night)
 2. Class kit differentiation (weapon sprites, first skills per class)
-3. Waypoints 3–10 following the chain in `src/data/waypoints.js`
+3. Waypoints 4–10 following the chain in `src/data/waypoints.js`
 4. Valinor as an explorable hub + persistent teleport (post-campaign scope)

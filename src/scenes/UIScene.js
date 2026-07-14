@@ -40,6 +40,7 @@ export default class UIScene extends Phaser.Scene {
       g.off(EV.ACTION_SET, this.onActionSet, this);
       g.off(EV.ATTACK_SET, this.onAttackSet, this);
       g.off(EV.HP, this.onHp, this);
+      g.off(EV.XP, this.onXp, this);
     });
   }
 
@@ -69,6 +70,13 @@ export default class UIScene extends Phaser.Scene {
     this.hpFill = this.add.rectangle(13, 58, 118, 6, 0x3fae5a, 1).setOrigin(0, 0.5).setDepth(61);
     this.hpBg.setVisible(false);
     this.hpFill.setVisible(false);
+
+    // level + xp bar
+    this.lvlText = this.add.text(12, 70, '', {
+      fontFamily: FONTS.body, fontSize: '11px', color: '#d9b968',
+    }).setDepth(60).setVisible(false);
+    this.xpBg = this.add.rectangle(12, 86, 120, 5, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
+    this.xpFill = this.add.rectangle(13, 86, 118, 3, 0x6a8fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
 
     // menu button
     this.menuBtn = this.add.text(0, 0, '☰', {
@@ -140,6 +148,7 @@ export default class UIScene extends Phaser.Scene {
     g.on(EV.ACTION_SET, this.onActionSet, this);
     g.on(EV.ATTACK_SET, this.onAttackSet, this);
     g.on(EV.HP, this.onHp, this);
+    g.on(EV.XP, this.onXp, this);
   }
 
   onTracker(data) {
@@ -182,6 +191,14 @@ export default class UIScene extends Phaser.Scene {
     const f = Phaser.Math.Clamp(hp / maxHp, 0, 1);
     this.hpFill.width = 118 * f;
     this.hpFill.setFillStyle(f > 0.5 ? 0x3fae5a : f > 0.25 ? 0xc9a13c : 0xa03030);
+  }
+
+  onXp({ level, xp, xpToNext }) {
+    this.lvlText.setText(`Lv. ${level}`).setVisible(true);
+    this.xpBg.setVisible(true);
+    this.xpFill.setVisible(true);
+    const f = Phaser.Math.Clamp(xp / xpToNext, 0, 1);
+    this.xpFill.width = 118 * f;
   }
 
   // ---------- dialogue ----------
@@ -273,22 +290,27 @@ export default class UIScene extends Phaser.Scene {
     const bw = Math.min(300, width - 60);
     const items = [veil];
     const mk = (i, label, cb) =>
-      items.push(makeTextButton(this, width / 2, height / 2 - 108 + i * 58, bw, 50, label, cb).setDepth(96));
+      items.push(makeTextButton(this, width / 2, height / 2 - 118 + i * 52, bw, 48, label, cb).setDepth(96));
+    const pts = this.registry.get('state')?.statPoints ?? 0;
     mk(0, 'Resume', () => this.closePause());
-    mk(1, 'Save', () => {
+    mk(1, pts > 0 ? `Character (${pts})` : 'Character', () => {
+      this.closePause();
+      this.game.events.emit(EV.MENU_CHARACTER);
+    });
+    mk(2, 'Save', () => {
       this.game.events.emit(EV.MENU_SAVE);
       this.closePause();
     });
-    mk(2, 'The Road West', () => {
+    mk(3, 'The Road West', () => {
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'Journey' });
     });
-    mk(3, 'Switch Character', () => {
+    mk(4, 'Switch Character', () => {
       this.game.events.emit(EV.MENU_SAVE);
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'CharacterSlot' });
     });
-    mk(4, 'Save & Quit to Homepage', () => {
+    mk(5, 'Save & Quit to Homepage', () => {
       this.game.events.emit(EV.MENU_SAVE);
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'Title' });

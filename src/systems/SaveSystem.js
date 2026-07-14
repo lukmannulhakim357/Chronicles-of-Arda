@@ -93,7 +93,8 @@ export const SaveSystem = {
     const campaignId = scene.registry.get('campaignId');
     const slotIndex = scene.registry.get('slotIndex');
     if (profileId == null || campaignId == null || slotIndex == null) return false;
-    this.setSlot(profileId, campaignId, slotIndex, { ...state, savedAt: Date.now(), lastWhere: meta.where });
+    const lastWhere = meta.where ?? state.lastWhere;
+    this.setSlot(profileId, campaignId, slotIndex, { ...state, savedAt: Date.now(), lastWhere });
     return true;
   },
 };

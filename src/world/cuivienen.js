@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
 import { TILE } from '../config.js';
+import { tilesToPx } from './coords.js';
+
+export { tilesToPx };
 
 // Waypoint 1 — Cuiviénen, the Waters of Awakening.
 // A starlit lakeshore: grass plain, the mere along the eastern edge,
@@ -24,10 +27,6 @@ export const POINTS = {
 };
 
 const SHORE_COL = 46; // water from this tile column eastwards
-
-export function tilesToPx(p) {
-  return { x: p.x * TILE + TILE / 2, y: p.y * TILE + TILE / 2 };
-}
 
 export function build(scene) {
   const rng = new Phaser.Math.RandomDataGenerator(['cuivienen']);

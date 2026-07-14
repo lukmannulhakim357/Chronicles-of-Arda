@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
-import { EV, TILE } from '../config.js';
-import { getState, setState } from '../systems/GameState.js';
+import { EV } from '../config.js';
+import { getState, setState, effectiveStats } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { kindredById } from '../data/kindreds.js';
 import { derivedStats } from '../data/classes.js';
-import * as cuivienen from '../world/cuivienen.js';
-import VanishingQuest from '../quests/vanishing.js';
+import { WAYPOINTS } from '../data/waypoints.js';
+import { ZONES } from '../world/zones.js';
+import { tilesToPx } from '../world/coords.js';
+import { xpToNextLevel } from '../data/leveling.js';
 
 const SPEED = 150;
 
@@ -20,14 +22,21 @@ export default class WorldScene extends Phaser.Scene {
       this.scene.start('Title');
       return;
     }
-    this.stats = derivedStats(this.state.stats);
+    this.stats = derivedStats(effectiveStats(this.state));
+
+    const zoneDef = ZONES[this.state.zone];
+    if (!zoneDef) {
+      this.scene.start('Title');
+      return;
+    }
+    this.zoneName = WAYPOINTS.find((w) => w.id === this.state.zone)?.name ?? this.state.zone;
 
     // zone
-    const zone = cuivienen.build(this);
+    const zone = zoneDef.build(this);
     this.zoneInfo = zone;
 
     // player
-    const spawn = this.state.pos ?? cuivienen.tilesToPx(zone.points.spawn);
+    const spawn = this.state.pos ?? tilesToPx(zone.points.spawn);
     const sheet = kindredById(this.state.kindred).sheet;
     this.sheet = sheet;
     this.player = this.physics.add.sprite(spawn.x, spawn.y, sheet, 10 * 13);
@@ -53,12 +62,10 @@ export default class WorldScene extends Phaser.Scene {
       .setDepth(50000);
     this.nightBaseAlpha = 0.42;
 
-    // NPCs at camp
+    // zone NPCs + quest
     this.npcs = [];
-    this.quest = new VanishingQuest(this);
-    this.addNpc('npc_elder', zone.points.elder, 'Elder Alassë', () => this.quest.talkElder());
-    this.addNpc('npc_kinswoman', zone.points.kinswoman, 'Nettë', () => this.quest.talkKinswoman());
-    this.addNpc('npc_elf_hunter', zone.points.hunter, 'Herenion', () => this.quest.talkHunter());
+    this.quest = new zoneDef.Quest(this);
+    this.quest.spawnNpcs(zone.points);
 
     // input
     this.cursors = this.input.keyboard?.createCursorKeys();
@@ -73,11 +80,14 @@ export default class WorldScene extends Phaser.Scene {
     g.on(EV.ATTACK_PRESSED, this.onAttack, this);
     g.on(EV.MENU_SAVE, this.onMenuSave, this);
     g.on(EV.MENU_QUIT, this.onMenuQuit, this);
+    g.on(EV.MENU_CHARACTER, this.onOpenCharacter, this);
+    this.events.on(Phaser.Scenes.Events.RESUME, this.onResumeFromOverlay, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
       g.off(EV.ACTION_PRESSED, this.onAction, this);
       g.off(EV.ATTACK_PRESSED, this.onAttack, this);
       g.off(EV.MENU_SAVE, this.onMenuSave, this);
       g.off(EV.MENU_QUIT, this.onMenuQuit, this);
+      g.off(EV.MENU_CHARACTER, this.onOpenCharacter, this);
       this.scale.off('resize', this.onResize, this);
     });
 
@@ -85,8 +95,9 @@ export default class WorldScene extends Phaser.Scene {
 
     // autosave on zone entry (concept doc §15.3)
     this.time.delayedCall(300, () => {
-      SaveSystem.saveActive(this, this.captureState(), { where: 'Cuiviénen' });
+      SaveSystem.saveActive(this, this.captureState(), { where: this.zoneName });
       this.emitHp();
+      this.emitXp();
       this.quest.begin();
     });
   }
@@ -104,10 +115,21 @@ export default class WorldScene extends Phaser.Scene {
   }
 
   addNpc(sheet, tile, name, onTalk) {
-    const p = cuivienen.tilesToPx(tile);
+    const p = tilesToPx(tile);
     const spr = this.add.sprite(p.x, p.y, sheet, 10 * 13);
     spr.setDepth(p.y);
-    const npc = { sprite: spr, x: p.x, y: p.y, name, label: 'Talk', interact: onTalk };
+    const npc = {
+      sprite: spr,
+      get x() {
+        return spr.x;
+      },
+      get y() {
+        return spr.y;
+      },
+      name,
+      label: 'Talk',
+      interact: onTalk,
+    };
     this.npcs.push(npc);
     return npc;
   }
@@ -115,14 +137,18 @@ export default class WorldScene extends Phaser.Scene {
   // ---------- state / save ----------
 
   captureState() {
-    const s = { ...this.state, pos: { x: Math.round(this.player.x), y: Math.round(this.player.y) }, zone: 'cuivienen' };
+    const s = {
+      ...this.state,
+      pos: { x: Math.round(this.player.x), y: Math.round(this.player.y) },
+      zone: this.state.zone,
+    };
     setState(this, s);
     this.state = s;
     return s;
   }
 
   onMenuSave() {
-    SaveSystem.saveActive(this, this.captureState(), { where: 'Cuiviénen' });
+    SaveSystem.saveActive(this, this.captureState(), { where: this.zoneName });
     this.game.events.emit(EV.TOAST, { text: 'Journey saved.' });
   }
 
@@ -130,6 +156,32 @@ export default class WorldScene extends Phaser.Scene {
     this.captureState();
     this.scene.stop('UI');
     this.scene.start(to);
+  }
+
+  onOpenCharacter(data) {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', data ?? {});
+  }
+
+  // scripted tutorial moment (Oromë naming the Eldar) — opens straight to
+  // the Stats tab with the level-up banner shown
+  openCharacterForLevelUp() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', { tab: 'stats', levelUp: true });
+  }
+
+  // equipment/stats may have changed in the Character scene while World
+  // was paused — refresh derived stats and clamp HP down if max HP dropped
+  onResumeFromOverlay() {
+    this.state = getState(this);
+    this.stats = derivedStats(effectiveStats(this.state));
+    if (this.state.hp > this.stats.maxHp) this.state.hp = this.stats.maxHp;
+    this.emitHp();
+    this.emitXp();
   }
 
   // ---------- hp ----------
@@ -144,6 +196,14 @@ export default class WorldScene extends Phaser.Scene {
 
   emitHp() {
     this.game.events.emit(EV.HP, { hp: this.state.hp, maxHp: this.stats.maxHp });
+  }
+
+  emitXp() {
+    this.game.events.emit(EV.XP, {
+      level: this.state.level,
+      xp: this.state.xp,
+      xpToNext: xpToNextLevel(this.state.level),
+    });
   }
 
   damagePlayer(amount) {
@@ -182,7 +242,7 @@ export default class WorldScene extends Phaser.Scene {
     this.attackCooldown = this.time.now + 550;
     this.attacking = true;
     this.player.play(`${this.sheet}-slash-${this.facing}`, true);
-    this.time.delayedCall(160, () => this.quest.tryHitShadow());
+    this.time.delayedCall(160, () => this.quest.onPlayerAttack?.());
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.attacking = false;
     });
@@ -240,7 +300,6 @@ export default class WorldScene extends Phaser.Scene {
     }
 
     // quest per-frame logic
-    if (this.state.quest.stage === 2) this.quest.encounterUpdate();
-    if (this.state.quest.stage === 4) this.quest.followerUpdate();
+    this.quest.update();
   }
 }

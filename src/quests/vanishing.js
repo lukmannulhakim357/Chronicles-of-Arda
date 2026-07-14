@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { EV, TILE } from '../config.js';
 import { tilesToPx, POINTS } from '../world/cuivienen.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { grantXp } from '../data/leveling.js';
 
 // Quest 1 — "The Vanishing" (waypoint 1, Cuiviénen).
 //   0  speak with Elder Alassë at the camp
@@ -59,6 +60,19 @@ export default class VanishingQuest {
 
   toast(text, duration) {
     this.scene.game.events.emit(EV.TOAST, { text, duration });
+  }
+
+  // ---------- NPCs (always present, talkable at any stage) ----------
+
+  spawnNpcs(points) {
+    this.scene.addNpc('npc_elder', points.elder, 'Elder Alassë', () => this.talkElder());
+    this.scene.addNpc('npc_kinswoman', points.kinswoman, 'Nettë', () => this.talkKinswoman());
+    this.scene.addNpc('npc_elf_hunter', points.hunter, 'Herenion', () => this.talkHunter());
+  }
+
+  update() {
+    if (this.stage === 2) this.encounterUpdate();
+    if (this.stage === 4) this.followerUpdate();
   }
 
   // ---------- setup on zone entry (fresh or from a save) ----------
@@ -264,7 +278,7 @@ export default class VanishingQuest {
   }
 
   // called when the player attacks (from WorldScene)
-  tryHitShadow() {
+  onPlayerAttack() {
     if (!this.shadow?.active) return;
     const player = this.scene.player;
     const d = Phaser.Math.Distance.Between(player.x, player.y, this.shadow.x, this.shadow.y);
@@ -303,6 +317,8 @@ export default class VanishingQuest {
     this.scene.time.delayedCall(1400, () => {
       this.setStage(3);
       this.scene.healPlayer();
+      grantXp(this.state, 20);
+      this.scene.emitXp();
       this.spawnOrome(false);
       this.autosave('The rocks above the mere');
     });
@@ -400,7 +416,30 @@ export default class VanishingQuest {
     }
     this.oromeInteractable = null;
     this.autosave('The rocks above the mere');
-    this.dialogueNaro();
+
+    const gained = grantXp(this.state, 30);
+    this.scene.emitXp();
+    if (gained > 0) {
+      this.scene.time.delayedCall(700, () => {
+        this.dialogue(
+          [
+            {
+              speaker: 'Oromë',
+              text: 'Feel that? Strength answering the road already — you are stronger than when you woke, star-kindled, and stronger still than you will be tomorrow.',
+            },
+            { speaker: 'Oromë', text: 'That growth is yours to shape. Choose where it settles.' },
+          ],
+          null,
+          () => {
+            this.autosave('The rocks above the mere');
+            this.scene.events.once(Phaser.Scenes.Events.RESUME, () => this.dialogueNaro());
+            this.scene.openCharacterForLevelUp();
+          }
+        );
+      });
+    } else {
+      this.dialogueNaro();
+    }
   }
 
   dialogueNaro() {
