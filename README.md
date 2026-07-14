@@ -64,7 +64,15 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
   concept doc's own framing of this waypoint as simpler filler content:
   1. Speak with Míriel, fallen behind the host
   2. Escort her west; forage and hunt three supply spots along the way
-  3. Lead her across the ford and rejoin the host
+  3. Lead her across the ford and rejoin the host — she and Tarion each
+     gift you a piece of armor, introducing **Inventory & Equipment**
+- **Inventory & Equipment** — introduced this waypoint as the first system
+  in a build-by-build gameplay tutorial (The Great Journey doubles as an
+  onboarding arc): Armor / Weapon / Trinket slots, open via the pause menu.
+  Equipping swaps gear in and out of your carry list and applies its stat
+  bonus immediately (Woven Steppe Cloak: +2 DEX, Herder's Jerkin: +3 VIT).
+  Weapon and Trinket stay locked — Waypoint 3 introduces weapons alongside
+  a first taste of basic-attack combat.
 - **The Road West** — the fixed 10-waypoint journey map. Waypoints 3–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
@@ -76,8 +84,8 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
 
 - **Touch (primary)**: virtual joystick — touch and drag anywhere on the left
   half of the screen; contextual button (Talk / Examine / Approach) and Attack
-  button bottom-right; ☰ opens the menu (Save / Road West / Switch Character /
-  Homepage).
+  button bottom-right; ☰ opens the menu (Inventory / Save / Road West /
+  Switch Character / Homepage).
 - **Keyboard (desktop testing)**: WASD/arrows to move, `E` action / advance
   dialogue, `Space` attack, `1`–`3` pick dialogue choices, `Esc` pause.
 
@@ -105,11 +113,11 @@ public/assets/characters/  composed LPC character spritesheets (see tools/)
 public/assets/tiles/       terrain & decor tiles (see CREDITS.md)
 public/assets/art/         narrative illustrations (see CREDITS.md)
 src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
-                            Creation, Story, World, Journey, UI
+                            Creation, Story, World, Journey, UI, Inventory
 src/world/                 zone builders (cuivienen, steppes) + the zone registry
 src/quests/                quest scripts (vanishing, stragglers)
 src/systems/               save system (profiles/campaigns/slots), game state
-src/data/                  campaigns, kindreds, classes, waypoints
+src/data/                  campaigns, kindreds, classes, waypoints, items
 src/ui/                    shared widgets + the DOM text-input modal
 tools/compose-characters.mjs  rebuilds character sheets from LPC layers
 ```

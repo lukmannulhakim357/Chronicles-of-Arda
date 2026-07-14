@@ -40,6 +40,7 @@ export const EV = {
   HP: 'ui:hp', // { hp, maxHp }
   MENU_SAVE: 'menu:save',
   MENU_QUIT: 'menu:quit',
+  MENU_INVENTORY: 'menu:inventory',
   PAUSE_OPEN: 'ui:pause-open',
   PAUSE_CLOSED: 'ui:pause-closed',
 };

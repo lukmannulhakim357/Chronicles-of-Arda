@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { EV } from '../config.js';
-import { getState, setState } from '../systems/GameState.js';
+import { getState, setState, effectiveStats } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { kindredById } from '../data/kindreds.js';
 import { derivedStats } from '../data/classes.js';
@@ -21,7 +21,7 @@ export default class WorldScene extends Phaser.Scene {
       this.scene.start('Title');
       return;
     }
-    this.stats = derivedStats(this.state.stats);
+    this.stats = derivedStats(effectiveStats(this.state));
 
     const zoneDef = ZONES[this.state.zone];
     if (!zoneDef) {
@@ -79,11 +79,14 @@ export default class WorldScene extends Phaser.Scene {
     g.on(EV.ATTACK_PRESSED, this.onAttack, this);
     g.on(EV.MENU_SAVE, this.onMenuSave, this);
     g.on(EV.MENU_QUIT, this.onMenuQuit, this);
+    g.on(EV.MENU_INVENTORY, this.onOpenInventory, this);
+    this.events.on(Phaser.Scenes.Events.RESUME, this.onResumeFromOverlay, this);
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
       g.off(EV.ACTION_PRESSED, this.onAction, this);
       g.off(EV.ATTACK_PRESSED, this.onAttack, this);
       g.off(EV.MENU_SAVE, this.onMenuSave, this);
       g.off(EV.MENU_QUIT, this.onMenuQuit, this);
+      g.off(EV.MENU_INVENTORY, this.onOpenInventory, this);
       this.scale.off('resize', this.onResize, this);
     });
 
@@ -151,6 +154,22 @@ export default class WorldScene extends Phaser.Scene {
     this.captureState();
     this.scene.stop('UI');
     this.scene.start(to);
+  }
+
+  onOpenInventory() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Inventory');
+  }
+
+  // equipment may have changed in Inventory while World was paused —
+  // refresh derived stats and clamp HP down if max HP dropped
+  onResumeFromOverlay() {
+    this.state = getState(this);
+    this.stats = derivedStats(effectiveStats(this.state));
+    if (this.state.hp > this.stats.maxHp) this.state.hp = this.stats.maxHp;
+    this.emitHp();
   }
 
   // ---------- hp ----------

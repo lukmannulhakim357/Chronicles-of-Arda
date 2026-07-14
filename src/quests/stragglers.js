@@ -132,6 +132,19 @@ export default class StragglersQuest {
         { speaker: 'Tarion', text: 'Wide country, this. Good for the eye, hard on the feet. There’s a shallow crossing north of here — follow the reeds.' },
         { speaker: 'Tarion', text: 'Mind the grass — it moves on its own sometimes. Not all of it is wind.' },
       ]);
+    } else if (!this.state.quest.flags.tarionGaveJerkin) {
+      this.dialogue(
+        [
+          { speaker: 'Tarion', text: 'Good. One less family lost to the grass. The host will remember that.' },
+          { speaker: 'Tarion', text: 'Here — take my spare jerkin. Hide’s tougher than it looks. Wear it well.' },
+        ],
+        null,
+        () => {
+          this.state.quest.flags.tarionGaveJerkin = true;
+          this.giveItem('herders_jerkin', "Herder's Jerkin");
+          this.autosave('The Steppes — the far bank');
+        }
+      );
     } else {
       this.dialogue([{ speaker: 'Tarion', text: 'Good. One less family lost to the grass. The host will remember that.' }]);
     }
@@ -186,10 +199,13 @@ export default class StragglersQuest {
     this.dialogue(
       [
         { speaker: 'Míriel', text: 'There — I can see them! The fires, the standards... we made it.' },
-        { speaker: 'Míriel', text: 'I won’t forget this. Not the crossing, not the hare stew tonight either.' },
+        { speaker: 'Míriel', text: 'Here — take this. I wove it myself; it kept me warm the whole march. You’ve more than earned it.' },
       ],
       null,
-      () => this.finishQuest()
+      () => {
+        this.giveItem('steppe_cloak', 'Woven Steppe Cloak');
+        this.finishQuest();
+      }
     );
   }
 
@@ -238,6 +254,19 @@ export default class StragglersQuest {
   autosave(where) {
     const s = this.scene.captureState();
     SaveSystem.saveActive(this.scene, s, { where });
+  }
+
+  // ---------- gear (Inventory is introduced this waypoint) ----------
+
+  giveItem(itemId, label) {
+    if (!this.state.inventory) this.state.inventory = [];
+    if (this.state.inventory.includes(itemId) || this.state.equipment?.armor === itemId) return;
+    this.state.inventory.push(itemId);
+    this.toast(`Received: ${label}`, 2600);
+    if (!this.state.quest.flags.seenInventoryTip) {
+      this.state.quest.flags.seenInventoryTip = true;
+      this.scene.time.delayedCall(1400, () => this.toast('New: Inventory — open the menu (☰) to equip your gear.', 3200));
+    }
   }
 
   // ---------- interactables the WorldScene should offer right now ----------
