@@ -43,7 +43,7 @@ const SLOT_DEFS = [
   { key: 'gloves', label: 'Gloves', locked: false },
   { key: 'boots', label: 'Boots', locked: false },
   { key: 'accessory', label: 'Trinket', locked: true },
-  { key: 'weapon', label: 'Weapon', locked: true },
+  { key: 'weapon', label: 'Weapon', locked: false },
 ];
 
 const STAT_INFO = {

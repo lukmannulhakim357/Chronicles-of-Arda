@@ -6,7 +6,7 @@ Middle-earth), built mobile-first with [Phaser 3](https://phaser.io) +
 browser. Play it live: **https://lukmannulhakim357.github.io/Chronicles-of-Arda/**
 
 **Current build: the Elf origin campaign — “The Great Journey”** (vertical
-slice, Waypoints 1–2 of 10 fully playable). Design source of truth:
+slice, Waypoints 1–3 of 10 fully playable). Design source of truth:
 [`arda-rpg-concept.md`](arda-rpg-concept.md) + the skill-system companion doc
 [`arda-rpg-skills.md`](arda-rpg-skills.md); build directives:
 [`docs/great-journey-build-prompt.md`](docs/great-journey-build-prompt.md).
@@ -23,8 +23,8 @@ slice, Waypoints 1–2 of 10 fully playable). Design source of truth:
 |---|---|
 | 1. Cuiviénen — "The Vanishing" | ✅ playable end-to-end |
 | 2. The Steppes — "The Stragglers" | ✅ playable end-to-end |
-| 3. The Great Forest | 📋 planned (next up) |
-| 4. Vales of Anduin — "Lenwë's Choice" | 📋 planned |
+| 3. The Great Forest — "Lost Before Nightfall" | ✅ playable end-to-end |
+| 4. Vales of Anduin — "Lenwë's Choice" | 📋 planned (next up) |
 | 5. Misty Mountains | 📋 planned |
 | 6. Rhovanion | 📋 planned |
 | 7. Ered Luin — "First Contact" | 📋 planned |
@@ -69,6 +69,25 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
      and boots, which now pauses on a **gear tutorial** (the Character
      screen opens automatically, nudging you to equip your reward) before
      the waypoint actually finishes. Tarion gifts a jerkin and bracers too.
+- **Waypoint 3 — The Great Forest**, fully playable: dense, dark woodland —
+  "no stars overhead" — and the quest **"Lost Before Nightfall"**, the
+  waypoint that introduces weapons and the first real fight:
+  1. Speak with Randir, worried the host has lost two people to the dark
+  2. Find Isilmë and Ancalimë, each lost among the trees; they follow you
+  3. Reach the clearing — Randir catches up and arms you with your class's
+     first weapon (unlocking the Weapon slot), a small tutorial for the
+     newly-visible Attack button
+  4. A wolf out of the dark — the game's first live fight, resolved by
+     `src/combat/`'s actual damage/accuracy/mitigation formulas rather than
+     a scripted HP pool: your equipped weapon and stats genuinely change
+     how the fight goes. Take too much damage and Randir steps in; win it
+     outright and the wolf just goes down.
+  5. Lead everyone the rest of the way to the path — waypoint complete
+  
+  The wolf's sprite is a **placeholder** — no dedicated animal art exists
+  yet, so it reuses the Waypoint 1 shadow-servant sheet, heavily retinted,
+  clearly noted in code as a stand-in (same "mark it, ship anyway"
+  convention already used for the [cutscene art placeholders](docs/cutscene-art-needed.md)).
 - **EXP & Leveling** — introduced at the very moment Oromë names you one of
   the Eldar: surviving the shadow-servant and his departure together grant
   exactly enough EXP to level up on the spot (concept doc §16.6 formula),
@@ -105,11 +124,12 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
   formulas, MP/cast-time/cooldown gating, buffs/debuffs/DoTs/HoTs, simplified
   threat/aggro targeting, a 3-tier companion-AI decision function (emergency
   → role-reactive trigger → default rotation), and a boss controller
-  (HP-threshold phases + attack telegraphs) — all implemented as pure,
-  engine-agnostic logic and covered by `tools/logic-test-combat.mjs`. There's
-  no playable battle yet to plug it into (Waypoint 3 is where basic-attack
-  combat first appears in the world) — this is the tested foundation ready
-  to wire in once that content ships, not a placeholder.
+  (HP-threshold phases + attack telegraphs) — pure, engine-agnostic logic
+  covered by `tools/logic-test-combat.mjs`. Waypoint 3's wolf fight is the
+  first live encounter actually driven by it (basic attacks only, both
+  directions — your equipped weapon and stats genuinely matter); the
+  threat/companion-AI/boss-phase pieces are still waiting on a fight with
+  more than one combatant on each side to plug into.
 - **Titles, Crafting** — stub tabs for systems that don't exist yet:
   milestone titles that will grant bonus stats, and crafting professions
   (Blacksmithing / Tailoring / Alchemy / Cooking). Clearly marked "Upcoming"
@@ -155,8 +175,8 @@ public/assets/tiles/       terrain & decor tiles (see CREDITS.md)
 public/assets/art/         narrative illustrations (see CREDITS.md)
 src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
                             Creation, Story, World, Journey, UI, Character
-src/world/                 zone builders (cuivienen, steppes) + the zone registry
-src/quests/                quest scripts (vanishing, stragglers)
+src/world/                 zone builders (cuivienen, steppes, greatforest) + the zone registry
+src/quests/                quest scripts (vanishing, stragglers, lostbeforenightfall)
 src/systems/               save system (profiles/campaigns/slots), game state
 src/data/                  campaigns, kindreds, classes, waypoints, items,
                            leveling, skills (skill trees + summon data)
@@ -184,14 +204,19 @@ marked placeholder frame in-game until they're ready.
 
 ## Roadmap (next builds)
 
-1. Waypoint 3 — The Great Forest (guide stragglers back to the path by night;
-   introduces weapons + basic-attack combat, unlocking the Weapon slot and
-   giving the `src/combat/` engine its first real battle to run)
+1. Waypoint 4 — Vales of Anduin ("Lenwë's Choice"), the campaign's first
+   branch point — Lenwë's Nandor splitting from the host is historically
+   fixed, but a companion NPC's personal choice can shift
 2. Class kit differentiation (weapon sprites + skill animation cues — the
-   trees themselves are already fully built, see the Skill Trees section)
-3. Waypoints 4–10 following the chain in `src/data/waypoints.js`
-4. Milestone titles, crafting professions, and richer treasure/monster gold
+   skill trees themselves are already fully built, see the Skill Trees
+   section) and a real wolf/beast sprite to replace Waypoint 3's retinted
+   placeholder
+3. Waypoints 5–10 following the chain in `src/data/waypoints.js`
+4. Multi-combatant encounters that actually exercise the threat/aggro,
+   companion-AI, and boss-phase/telegraph pieces of `src/combat/` — the
+   Waypoint 3 wolf only needed the damage/accuracy/mitigation core
+5. Milestone titles, crafting professions, and richer treasure/monster gold
    drops as dungeons/wilderness content ships
-5. Real paperdoll/item-icon art to replace the current vector/monogram
+6. Real paperdoll/item-icon art to replace the current vector/monogram
    placeholders in the Gear tab
-6. Valinor as an explorable hub + persistent teleport (post-campaign scope)
+7. Valinor as an explorable hub + persistent teleport (post-campaign scope)

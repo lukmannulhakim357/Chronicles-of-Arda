@@ -25,7 +25,7 @@ export const WAYPOINTS = [
     terrain: 'Dense, dark woodland',
     beat: 'The host threads a wood with no stars overhead.',
     quest: 'Lost Before Nightfall',
-    built: false,
+    built: true,
   },
   {
     id: 'vales-anduin',
