@@ -3,9 +3,20 @@ import { COLORS, FONTS } from '../config.js';
 import { makeTextButton } from '../ui/widgets.js';
 import { getState, setState, effectiveStats } from '../systems/GameState.js';
 import { itemById, bonusLine } from '../data/items.js';
-import { derivedStats } from '../data/classes.js';
+import { derivedStats, classById } from '../data/classes.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import {
+  MAX_TREE_POINTS,
+  getTree,
+  isUnlocked,
+  rankOf,
+  canRankUp,
+  rankUp,
+  spentSkillPoints,
+  learnedActives,
+  setActionBarSlot,
+} from '../data/skills.js';
 
 // Launched on top of a paused World (+ paused UI) from the pause menu, or
 // straight into a scripted tutorial moment (level-up, first gear reward).
@@ -473,27 +484,121 @@ export default class CharacterScene extends Phaser.Scene {
     SaveSystem.saveActive(this, this.state);
   }
 
-  // ---------- Skills tab (stub) ----------
+  // ---------- Skills tab: real skill tree + action bar ----------
 
   renderSkillsTab(top) {
     const { width } = this.scale;
     const cx = width / 2;
-    this.add.text(cx, top, 'Skill Tree — Upcoming', { fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968' }).setOrigin(0.5, 0);
+    const classId = this.state.classId;
+    const klass = classById(classId);
+    const tree = getTree(classId);
+    const spent = spentSkillPoints(this.state, classId);
+    const banked = this.state.skillPoints ?? 0;
+
     this.add
-      .text(
-        cx,
-        top + 26,
-        `Each class will unlock its own tree of active and passive skills in a future update.\n\nYou have ${this.state.skillPoints ?? 0} skill point${(this.state.skillPoints ?? 0) === 1 ? '' : 's'} banked for when it arrives.`,
-        {
-          fontFamily: FONTS.body,
-          fontSize: '13px',
-          color: COLORS.textDim,
-          align: 'center',
-          wordWrap: { width: Math.min(480, width - 40) },
-          lineSpacing: 4,
-        }
-      )
+      .text(cx, top, `${klass?.name ?? 'Class'} Skill Tree`, { fontFamily: FONTS.body, fontSize: '13px', color: '#d9b968' })
       .setOrigin(0.5, 0);
+    this.add
+      .text(cx, top + 15, `${spent}/${MAX_TREE_POINTS} points spent  •  ${banked} banked`, {
+        fontFamily: FONTS.body,
+        fontSize: '10px',
+        color: COLORS.textDim,
+      })
+      .setOrigin(0.5, 0);
+
+    const rowTop = top + 30;
+    const rowH = 27;
+    const rowW = Math.min(600, width - 24);
+    tree.forEach((def, i) => {
+      const y = rowTop + i * (rowH + 3) + rowH / 2;
+      this.buildSkillRow(classId, def, cx, y, rowW, rowH);
+    });
+
+    const barTop = rowTop + tree.length * (rowH + 3) + 8;
+    this.renderActionBar(classId, cx, rowW, barTop);
+  }
+
+  buildSkillRow(classId, def, cx, y, w, h) {
+    const rank = rankOf(this.state, def.id);
+    const unlocked = isUnlocked(this.state, classId, def.id);
+    this.add.rectangle(cx, y, w, h, COLORS.panel, unlocked ? 0.92 : 0.55).setStrokeStyle(1, COLORS.panelLine);
+
+    const typeTag = def.capstone ? 'CAP' : def.type === 'active' ? 'A' : 'P';
+    this.add
+      .text(cx - w / 2 + 8, y, typeTag, { fontFamily: FONTS.body, fontSize: '9px', color: '#6a8fd9' })
+      .setOrigin(0, 0.5);
+    this.add
+      .text(cx - w / 2 + 30, y, def.name, {
+        fontFamily: FONTS.body,
+        fontSize: '11px',
+        color: unlocked ? '#e8e4d8' : '#5a6a88',
+      })
+      .setOrigin(0, 0.5);
+
+    if (!unlocked) {
+      this.add
+        .text(cx + w / 2 - 8, y, 'Locked', { fontFamily: FONTS.body, fontSize: '10px', color: '#5a6a88' })
+        .setOrigin(1, 0.5);
+      return;
+    }
+
+    this.add
+      .text(cx + w / 2 - 56, y, `${rank}/${def.maxRank}`, { fontFamily: FONTS.body, fontSize: '11px', color: rank > 0 ? '#d9b968' : COLORS.textDim })
+      .setOrigin(0.5);
+
+    const can = canRankUp(this.state, classId, def.id);
+    const plus = this.add
+      .text(cx + w / 2 - 16, y, '+', { fontFamily: FONTS.body, fontSize: '16px', color: can ? '#e8e4d8' : '#3a4a5a' })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: can });
+    plus.on('pointerup', () => {
+      if (!canRankUp(this.state, classId, def.id)) return;
+      rankUp(this.state, classId, def.id);
+      this.persistGear();
+      this.build();
+    });
+  }
+
+  renderActionBar(classId, cx, w, top) {
+    this.add
+      .text(cx, top, 'Action Bar — tap a slot to cycle', { fontFamily: FONTS.body, fontSize: '10px', color: COLORS.textDim, fontStyle: 'italic' })
+      .setOrigin(0.5, 0);
+    const actives = learnedActives(this.state, classId);
+    const slotW = Math.min(120, (w - 3 * 8) / 4);
+    const slotH = 26;
+    const y = top + 20;
+    const totalW = slotW * 4 + 8 * 3;
+    let x = cx - totalW / 2 + slotW / 2;
+    this.state.actionBar ??= [null, null, null, null];
+    for (let i = 0; i < 4; i++) {
+      const slotIndex = i;
+      const skillId = this.state.actionBar[i];
+      const def = skillId ? actives.find((s) => s.id === skillId) : null;
+      const box = this.add
+        .rectangle(x, y, slotW, slotH, COLORS.panel, 0.92)
+        .setStrokeStyle(1, def ? COLORS.gold : COLORS.panelLine);
+      box.setInteractive({ useHandCursor: true });
+      this.add
+        .text(x, y, def ? def.name : 'Empty', {
+          fontFamily: FONTS.body,
+          fontSize: '9px',
+          color: def ? '#d9b968' : '#5a6a88',
+          align: 'center',
+          wordWrap: { width: slotW - 6 },
+        })
+        .setOrigin(0.5);
+      box.on('pointerup', () => {
+        if (!actives.length) return;
+        const options = [null, ...actives.map((s) => s.id)];
+        const cur = this.state.actionBar[slotIndex];
+        const curIdx = options.indexOf(cur);
+        const next = options[(curIdx + 1) % options.length];
+        setActionBarSlot(this.state, slotIndex, next);
+        this.persistGear();
+        this.build();
+      });
+      x += slotW + 8;
+    }
   }
 
   // ---------- Titles tab (stub) ----------

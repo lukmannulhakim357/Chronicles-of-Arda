@@ -7,7 +7,8 @@ browser. Play it live: **https://lukmannulhakim357.github.io/Chronicles-of-Arda/
 
 **Current build: the Elf origin campaign — “The Great Journey”** (vertical
 slice, Waypoints 1–2 of 10 fully playable). Design source of truth:
-[`arda-rpg-concept.md`](arda-rpg-concept.md); build directives:
+[`arda-rpg-concept.md`](arda-rpg-concept.md) + the skill-system companion doc
+[`arda-rpg-skills.md`](arda-rpg-skills.md); build directives:
 [`docs/great-journey-build-prompt.md`](docs/great-journey-build-prompt.md).
 
 > 📌 Repo "About" (top-right of the GitHub page) isn't editable from here —
@@ -91,11 +92,28 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
 - **Story Collection ("Tales" tab)** — every story card you've seen (waypoint
   completions, major beats) is archived and replayable from the Character
   screen, so you can revisit *Chronicles of Arda* as you go.
-- **Skills, Titles, Crafting** — stub tabs/screens for systems that don't
-  exist yet: a per-class skill tree (banked skill points show already),
+- **Skill Trees & Action Bar** (design: [`arda-rpg-skills.md`](arda-rpg-skills.md))
+  — the Character menu's **Skills** tab is a real progression screen: every
+  class has its own fixed 8-skill tree (7 regular + 1 capstone, 6 Active + 2
+  Passive, 38 points to fully max — `src/data/skills.js`), unlocked in order
+  as you spend banked skill points, with a live points-spent counter. Once a
+  tree is fully maxed, further skill points auto-convert to bonus stat
+  points instead of banking uselessly. Below the tree, a 4-slot Action Bar
+  lets you assign any of your learned Active skills — tap a slot to cycle
+  through them, swappable anytime outside combat.
+- **Combat engine** (`src/combat/`) — damage/mitigation/accuracy/crit
+  formulas, MP/cast-time/cooldown gating, buffs/debuffs/DoTs/HoTs, simplified
+  threat/aggro targeting, a 3-tier companion-AI decision function (emergency
+  → role-reactive trigger → default rotation), and a boss controller
+  (HP-threshold phases + attack telegraphs) — all implemented as pure,
+  engine-agnostic logic and covered by `tools/logic-test-combat.mjs`. There's
+  no playable battle yet to plug it into (Waypoint 3 is where basic-attack
+  combat first appears in the world) — this is the tested foundation ready
+  to wire in once that content ships, not a placeholder.
+- **Titles, Crafting** — stub tabs for systems that don't exist yet:
   milestone titles that will grant bonus stats, and crafting professions
-  (Blacksmithing / Tailoring / Alchemy / Cooking). All clearly marked
-  "Upcoming" rather than hidden, so the shape of the full game is visible.
+  (Blacksmithing / Tailoring / Alchemy / Cooking). Clearly marked "Upcoming"
+  rather than hidden, so the shape of the full game is visible.
 - **The Road West** — the fixed 10-waypoint journey map. Waypoints 3–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
@@ -140,9 +158,13 @@ src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
 src/world/                 zone builders (cuivienen, steppes) + the zone registry
 src/quests/                quest scripts (vanishing, stragglers)
 src/systems/               save system (profiles/campaigns/slots), game state
-src/data/                  campaigns, kindreds, classes, waypoints, items, leveling
+src/data/                  campaigns, kindreds, classes, waypoints, items,
+                           leveling, skills (skill trees + summon data)
+src/combat/                damage/threat/AI/boss-phase engine (not yet wired
+                           into a playable battle — see README below)
 src/ui/                    shared widgets + the DOM text-input modal
 tools/compose-characters.mjs  rebuilds character sheets from LPC layers
+tools/logic-test-combat.mjs   pure Node test for the skill/combat engine
 ```
 
 ## Asset pipeline & licensing
@@ -163,9 +185,10 @@ marked placeholder frame in-game until they're ready.
 ## Roadmap (next builds)
 
 1. Waypoint 3 — The Great Forest (guide stragglers back to the path by night;
-   introduces weapons + basic-attack combat, unlocking the Weapon slot)
-2. Class kit differentiation (weapon sprites, first skills per class — fills
-   in the Skills tab)
+   introduces weapons + basic-attack combat, unlocking the Weapon slot and
+   giving the `src/combat/` engine its first real battle to run)
+2. Class kit differentiation (weapon sprites + skill animation cues — the
+   trees themselves are already fully built, see the Skill Trees section)
 3. Waypoints 4–10 following the chain in `src/data/waypoints.js`
 4. Milestone titles, crafting professions, and richer treasure/monster gold
    drops as dungeons/wilderness content ships

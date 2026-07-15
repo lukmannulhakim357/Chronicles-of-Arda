@@ -28,6 +28,8 @@ export function newGameState(kindredId, classId) {
     xp: 0,
     statPoints: 0,
     skillPoints: 0,
+    skills: {},
+    actionBar: [null, null, null, null],
     titles: [],
     seenCards: [],
   };
@@ -56,6 +58,8 @@ export function setState(scene, state) {
   state.gold ??= 0;
   state.titles ??= [];
   state.seenCards ??= [];
+  state.skills ??= {};
+  state.actionBar ??= [null, null, null, null];
   if (state.mp == null) state.mp = derivedStats(effectiveStats(state)).maxMp;
   scene.registry.set('state', state);
 }

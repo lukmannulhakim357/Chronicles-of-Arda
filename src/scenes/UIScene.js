@@ -318,7 +318,8 @@ export default class UIScene extends Phaser.Scene {
     const items = [veil];
     const mk = (i, label, cb) =>
       items.push(makeTextButton(this, width / 2, height / 2 - 118 + i * 52, bw, 48, label, cb).setDepth(96));
-    const pts = this.registry.get('state')?.statPoints ?? 0;
+    const st = this.registry.get('state');
+    const pts = (st?.statPoints ?? 0) + (st?.skillPoints ?? 0);
     mk(0, 'Resume', () => this.closePause());
     mk(1, pts > 0 ? `Character (${pts})` : 'Character', () => {
       this.closePause();
