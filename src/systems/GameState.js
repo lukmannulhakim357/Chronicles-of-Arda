@@ -30,6 +30,7 @@ export function newGameState(kindredId, classId) {
     skillPoints: 0,
     skills: {},
     actionBar: [null, null, null, null],
+    potions: { hp: 2, mp: 2 },
     titles: [],
     seenCards: [],
   };
@@ -60,6 +61,7 @@ export function setState(scene, state) {
   state.seenCards ??= [];
   state.skills ??= {};
   state.actionBar ??= [null, null, null, null];
+  state.potions ??= { hp: 2, mp: 2 };
   if (state.mp == null) state.mp = derivedStats(effectiveStats(state)).maxMp;
   scene.registry.set('state', state);
 }

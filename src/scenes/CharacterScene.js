@@ -15,7 +15,6 @@ import {
   rankUp,
   spentSkillPoints,
   learnedActives,
-  setActionBarSlot,
 } from '../data/skills.js';
 
 // Launched on top of a paused World (+ paused UI) from the pause menu, or
@@ -559,46 +558,20 @@ export default class CharacterScene extends Phaser.Scene {
     });
   }
 
+  // The HUD skill wheel auto-fills with every learned Active (6 slots) plus
+  // HP/MP potions — no manual loadout to manage, so this is just the note.
   renderActionBar(classId, cx, w, top) {
+    const n = learnedActives(this.state, classId).length;
     this.add
-      .text(cx, top, 'Action Bar — tap a slot to cycle', { fontFamily: FONTS.body, fontSize: '10px', color: COLORS.textDim, fontStyle: 'italic' })
+      .text(cx, top + 4, `Skill wheel: ${n}/6 skill slot${n === 1 ? '' : 's'} filled + HP/MP potions — rotate it in the HUD with ⟳.`, {
+        fontFamily: FONTS.body,
+        fontSize: '10px',
+        color: COLORS.textDim,
+        fontStyle: 'italic',
+        align: 'center',
+        wordWrap: { width: w - 20 },
+      })
       .setOrigin(0.5, 0);
-    const actives = learnedActives(this.state, classId);
-    const slotW = Math.min(120, (w - 3 * 8) / 4);
-    const slotH = 26;
-    const y = top + 20;
-    const totalW = slotW * 4 + 8 * 3;
-    let x = cx - totalW / 2 + slotW / 2;
-    this.state.actionBar ??= [null, null, null, null];
-    for (let i = 0; i < 4; i++) {
-      const slotIndex = i;
-      const skillId = this.state.actionBar[i];
-      const def = skillId ? actives.find((s) => s.id === skillId) : null;
-      const box = this.add
-        .rectangle(x, y, slotW, slotH, COLORS.panel, 0.92)
-        .setStrokeStyle(1, def ? COLORS.gold : COLORS.panelLine);
-      box.setInteractive({ useHandCursor: true });
-      this.add
-        .text(x, y, def ? def.name : 'Empty', {
-          fontFamily: FONTS.body,
-          fontSize: '9px',
-          color: def ? '#d9b968' : '#5a6a88',
-          align: 'center',
-          wordWrap: { width: slotW - 6 },
-        })
-        .setOrigin(0.5);
-      box.on('pointerup', () => {
-        if (!actives.length) return;
-        const options = [null, ...actives.map((s) => s.id)];
-        const cur = this.state.actionBar[slotIndex];
-        const curIdx = options.indexOf(cur);
-        const next = options[(curIdx + 1) % options.length];
-        setActionBarSlot(this.state, slotIndex, next);
-        this.persistGear();
-        this.build();
-      });
-      x += slotW + 8;
-    }
   }
 
   // ---------- Titles tab (stub) ----------
@@ -705,8 +678,19 @@ export default class CharacterScene extends Phaser.Scene {
         wordWrap: { width: width - 60 },
       })
       .setOrigin(0.5, 0);
+    let bodyTop = 56;
+    // replay the card's illustration too, not just its words
+    if (c.art && this.textures.exists(c.art)) {
+      const src = this.textures.get(c.art).source?.[0];
+      const aspect = src?.height ? src.width / src.height : 16 / 9;
+      const fh = Math.min(height * 0.36, (width - 80) / aspect);
+      const fw = fh * aspect;
+      this.add.image(cx, bodyTop + fh / 2, c.art).setDisplaySize(fw, fh);
+      this.add.rectangle(cx, bodyTop + fh / 2, fw, fh).setStrokeStyle(2, COLORS.panelLine);
+      bodyTop += fh + 12;
+    }
     this.add
-      .text(cx, 56, (c.paragraphs ?? []).join('\n\n'), {
+      .text(cx, bodyTop, (c.paragraphs ?? []).join('\n\n'), {
         fontFamily: FONTS.body,
         fontSize: '13px',
         color: COLORS.text,

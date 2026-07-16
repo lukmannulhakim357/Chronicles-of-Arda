@@ -242,6 +242,9 @@ export default class StragglersQuest {
     this.state.waypointIndex = 2;
     grantXp(this.state, 25);
     grantGold(this.state, 40);
+    this.state.potions ??= { hp: 2, mp: 2 };
+    this.state.potions.hp += 1;
+    this.state.potions.mp += 1;
     this.scene.emitXp();
     this.scene.emitGold();
     this.autosave('The Steppes — the far bank');
@@ -255,7 +258,7 @@ export default class StragglersQuest {
           'Míriel and her gathered stores rejoin the host safely. The march west continues — grass gives way, ahead, to darker trees.',
           'The Great Forest waits beyond the plain.',
         ],
-        rewards: { xp: 25, gold: 40, items: ['Woven Steppe Cloak', 'Steppe-worn Boots'] },
+        rewards: { xp: 25, gold: 40, items: ['Woven Steppe Cloak', 'Steppe-worn Boots', 'HP Potion ×1', 'MP Potion ×1'] },
         button: 'To the Road West',
         next: 'Journey',
       });

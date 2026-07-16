@@ -55,14 +55,17 @@ console.log('Cleave unlocked after ranking Bash:', rows.includes('Locked') && !r
 console.log('points-spent line:', rows.find((t) => t.includes('points spent')));
 await page.screenshot({ path: `${OUT}/02-after-rankup.png` });
 
-// action bar slot 0 sits at (208, 355) — assign Bash
-await page.mouse.click(208, 355); await page.waitForTimeout(300);
-let bar = await page.evaluate(() => window.__game.scene.getScene('Character').state.actionBar);
-console.log('actionBar after assign:', JSON.stringify(bar));
-await page.screenshot({ path: `${OUT}/03-action-bar-assigned.png` });
+// close — the HUD skill wheel should now contain Bash (auto-filled from
+// learned actives) plus the two potion slots
+await page.mouse.click(400, 424); await page.waitForTimeout(700);
+const ring = await page.evaluate(() => {
+  const ui = window.__game.scene.getScene('UI');
+  return { ring: ui.ring.map((s) => (s ? s.name : null)), visibleBtns: ui.skillBtns.filter((b) => b.cont.visible).length };
+});
+console.log('skill wheel after learning Bash:', JSON.stringify(ring));
+await page.screenshot({ path: `${OUT}/03-skill-wheel.png` });
 
-// close, reopen, confirm persistence through a save/reload cycle
-await page.mouse.click(400, 424); await page.waitForTimeout(500);
+// confirm persistence through a save/reload cycle
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForTimeout(1500);
 await page.mouse.click(400, 295); await page.waitForTimeout(600);
@@ -71,7 +74,7 @@ await page.mouse.click(135, 160); await page.waitForTimeout(900);
 await page.mouse.click(400, 110); await page.waitForTimeout(2500);
 const persisted = await page.evaluate(() => {
   const w = window.__game.scene.getScene('World');
-  return { skills: w.state.skills, actionBar: w.state.actionBar, skillPoints: w.state.skillPoints };
+  return { skills: w.state.skills, potions: w.state.potions, skillPoints: w.state.skillPoints };
 });
 console.log('persisted after reload:', JSON.stringify(persisted));
 

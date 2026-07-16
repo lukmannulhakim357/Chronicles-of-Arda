@@ -61,14 +61,22 @@ export default class UIScene extends Phaser.Scene {
     this.attackBtn = this.makeRoundButton('⚔\nAttack', 0xa03030, () => this.game.events.emit(EV.ATTACK_PRESSED));
     this.attackBtn.cont.setVisible(false);
 
-    // 4 round skill slots (mobile skill wheel) — populated from the action
-    // bar; visible whenever the matching slot has a skill assigned
+    // the skill wheel: an 8-slot ring (6 learned skills + HP/MP potions),
+    // 4 positions visible at a time, rotated with the ⟳ button so every
+    // learned skill stays reachable
+    this.ring = [null, null, null, null, null, null, null, null];
+    this.ringOffset = 0;
     this.skillBtns = [];
     for (let i = 0; i < 4; i++) {
-      const b = this.makeRoundButton('', 0x6a8fd9, () => this.game.events.emit(EV.SKILL_PRESSED, { slot: i }), 26);
+      const b = this.makeRoundButton('', 0x6a8fd9, () => this.game.events.emit(EV.SKILL_PRESSED, { slot: (this.ringOffset + i) % 8 }), 26);
       b.cont.setVisible(false);
       this.skillBtns.push(b);
     }
+    this.rotateBtn = this.makeRoundButton('⟳', 0xd9b968, () => {
+      this.ringOffset = (this.ringOffset + 1) % 8;
+      this.renderRing();
+    }, 18);
+    this.rotateBtn.cont.setVisible(false);
 
     // quest tracker
     this.trackerTitle = this.add.text(12, 10, '', {
@@ -163,7 +171,7 @@ export default class UIScene extends Phaser.Scene {
     this.goldText.setPosition(width - this.goldText.width - 10, this.menuBtn.y + this.menuBtn.height + 6);
     this.actionBtn.cont.setPosition(width - 62, height - 66);
     this.attackBtn.cont.setPosition(width - 62, height - 160);
-    // skill wheel arcs up-left from the attack button
+    // skill wheel arcs up-left from the attack button, rotate hub inside it
     const arc = [
       { x: width - 150, y: height - 176 },
       { x: width - 196, y: height - 128 },
@@ -171,6 +179,7 @@ export default class UIScene extends Phaser.Scene {
       { x: width - 150, y: height - 40 },
     ];
     this.skillBtns?.forEach((b, i) => b.cont.setPosition(arc[i].x, arc[i].y));
+    this.rotateBtn?.cont.setPosition(width - 158, height - 104);
     if (this.dialogue) this.layoutSheet();
   }
 
@@ -192,14 +201,22 @@ export default class UIScene extends Phaser.Scene {
   }
 
   onSkillbar({ slots }) {
+    this.ring = slots;
+    this.renderRing();
+  }
+
+  renderRing() {
+    const anyContent = this.ring.some((s) => s);
+    this.rotateBtn.cont.setVisible(anyContent);
     this.skillBtns.forEach((b, i) => {
-      const s = slots[i];
+      const s = this.ring[(this.ringOffset + i) % 8];
       if (!s) {
         b.cont.setVisible(false);
         return;
       }
+      const isPotion = !!s.potion;
       b.txt.setText(s.name);
-      b.circle.setStrokeStyle(3, s.ready ? 0x6a8fd9 : 0x3a4a5a, 0.9);
+      b.circle.setStrokeStyle(3, s.ready ? (isPotion ? (s.potion === 'hp' ? 0x3fae5a : 0x4a7fd9) : 0x6a8fd9) : 0x3a4a5a, 0.9);
       b.txt.setColor(s.ready ? '#e8e4d8' : '#5a6a88');
       b.cont.setVisible(true);
     });

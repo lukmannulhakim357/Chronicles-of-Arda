@@ -5,6 +5,12 @@ import { KINDREDS } from '../data/kindreds.js';
 import { CLASSES } from '../data/classes.js';
 import { newGameState, setState } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { getTree } from '../data/skills.js';
+import { playUltimate } from '../fx/skillfx.js';
+
+// classes whose capstone is party-support — their preview adds a companion
+// so the party-wide effect actually reads as party-wide
+const SUPPORT_ULTIMATES = ['loresinger', 'herbmaster', 'smith', 'captain'];
 
 // Character creation: pick a kindred (whom do you follow?) then a class.
 // Touch-first: big cards, one decision per screen.
@@ -152,10 +158,78 @@ export default class CreationScene extends Phaser.Scene {
           color: '#7f8db0',
         })
         .setOrigin(0.5, 1);
-      card.on('pointerup', () => this.confirm(c));
+      card.on('pointerup', () => this.showUltimatePreview(c));
     });
 
     makeTextButton(this, cx, height - 38, 180, 46, '← Back', () => this.showKindreds());
+  }
+
+  // Tapping a class opens a live preview of its ultimate before committing:
+  // the kindred's own sprite on a small stage, capstone VFX looping, plus a
+  // companion for the party-support ultimates so the party effect shows.
+  showUltimatePreview(klass) {
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const kindred = KINDREDS.find((k) => k.id === this.kindredId);
+    const capstone = getTree(klass.id).find((s) => s.capstone);
+
+    const items = [];
+    const veil = this.add.rectangle(cx, height / 2, width, height, 0x05060f, 0.88).setInteractive().setDepth(300);
+    items.push(veil);
+
+    const panelW = Math.min(520, width - 24);
+    const panel = this.add.rectangle(cx, height / 2, panelW, Math.min(360, height - 20), COLORS.panel, 0.97).setStrokeStyle(2, 0xd9b968).setDepth(301);
+    items.push(panel);
+    const panelTop = height / 2 - panel.height / 2;
+
+    items.push(
+      this.add.text(cx, panelTop + 10, `${klass.name} — Ultimate: ${capstone?.name ?? ''}`, {
+        fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968',
+      }).setOrigin(0.5, 0).setDepth(302)
+    );
+    items.push(
+      this.add.text(cx, panelTop + 32, capstone?.effect ?? '', {
+        fontFamily: FONTS.body, fontSize: '10px', color: COLORS.textDim, align: 'center',
+        wordWrap: { width: panelW - 40 }, lineSpacing: 2,
+      }).setOrigin(0.5, 0).setDepth(302)
+    );
+
+    // the little stage
+    const stageY = height / 2 + 26;
+    const stage = this.add.rectangle(cx, stageY, panelW - 40, 120, 0x0a0e1e, 0.9).setStrokeStyle(1, COLORS.panelLine).setDepth(301);
+    items.push(stage);
+    const caster = this.add.sprite(cx - 40, stageY + 30, kindred.sheet, ROW.walkDown * SHEET_COLS).setDepth(303);
+    caster.play(`${kindred.sheet}-idle-down`);
+    items.push(caster);
+    const allies = [];
+    if (SUPPORT_ULTIMATES.includes(klass.id)) {
+      const ally = this.add.sprite(cx + 55, stageY + 30, 'npc_kinswoman', ROW.walkDown * SHEET_COLS).setDepth(303);
+      ally.play('npc_kinswoman-idle-down');
+      items.push(ally);
+      allies.push({ x: ally.x, y: ally.y });
+    }
+
+    // loop the ultimate until the player decides
+    let dead = false;
+    const loop = () => {
+      if (dead) return;
+      const dur = playUltimate(this, klass.id, { x: caster.x, y: caster.y }, allies, { x: cx + 55, y: stageY + 20 });
+      this.previewTimer = this.time.delayedCall(dur + 700, loop);
+    };
+    loop();
+
+    const cleanup = () => {
+      dead = true;
+      this.previewTimer?.remove();
+      items.forEach((o) => o.destroy());
+      btnBack.destroy();
+      btnGo.destroy();
+    };
+    const btnBack = makeTextButton(this, cx - 92, panelTop + panel.height - 30, 160, 42, '← Choose again', () => cleanup()).setDepth(302);
+    const btnGo = makeTextButton(this, cx + 92, panelTop + panel.height - 30, 160, 42, `Begin as ${klass.name}`, () => {
+      cleanup();
+      this.confirm(klass);
+    }, { stroke: 0xd9b968 }).setDepth(302);
   }
 
   confirm(klass) {

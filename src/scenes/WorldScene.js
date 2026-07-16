@@ -8,7 +8,8 @@ import { WAYPOINTS } from '../data/waypoints.js';
 import { ZONES } from '../world/zones.js';
 import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
-import { skillDef, rankOf } from '../data/skills.js';
+import { skillDef, rankOf, skillRing } from '../data/skills.js';
+import { playSkillFx, playUltimate } from '../fx/skillfx.js';
 
 const SPEED = 150;
 
@@ -284,12 +285,15 @@ export default class WorldScene extends Phaser.Scene {
   // ---------- skills (action-bar slots in the HUD) ----------
 
   emitSkillbar() {
-    const bar = this.state.actionBar ?? [null, null, null, null];
-    const slots = bar.map((id) => {
-      if (!id) return null;
-      const def = skillDef(this.state.classId, id);
+    const slots = skillRing(this.state).map((entry) => {
+      if (!entry) return null;
+      if (entry.type === 'potion') {
+        const count = this.state.potions?.[entry.pot] ?? 0;
+        return { name: `🧪${entry.pot.toUpperCase()}\n×${count}`, ready: count > 0, potion: entry.pot };
+      }
+      const def = skillDef(this.state.classId, entry.id);
       if (!def) return null;
-      const ready = (this.skillCooldowns?.[id] ?? 0) <= this.time.now && (this.state.mp ?? 0) >= (def.mp ?? 0);
+      const ready = (this.skillCooldowns?.[entry.id] ?? 0) <= this.time.now && (this.state.mp ?? 0) >= (def.mp ?? 0);
       return { name: def.name, ready };
     });
     this.game.events.emit(EV.SKILLBAR, { slots });
@@ -297,8 +301,11 @@ export default class WorldScene extends Phaser.Scene {
 
   onSkillPressed({ slot }) {
     if (this.game.uiBlocking || this.attacking) return;
-    const id = this.state.actionBar?.[slot];
-    if (!id) return;
+    const entry = skillRing(this.state)[slot];
+    if (!entry) return;
+    if (entry.type === 'potion') return this.usePotion(entry.pot);
+
+    const id = entry.id;
     const def = skillDef(this.state.classId, id);
     if (!def) return;
     if ((this.skillCooldowns[id] ?? 0) > this.time.now) {
@@ -316,8 +323,15 @@ export default class WorldScene extends Phaser.Scene {
     this.player.play(`${this.sheet}-slash-${this.facing}`, true);
     const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
     this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
-    const flash = this.add.image(this.player.x, this.player.y - 20, 'glow').setScale(0.7).setDepth(this.player.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    this.tweens.add({ targets: flash, scale: 1.1, alpha: 0, duration: 380, onComplete: () => flash.destroy() });
+
+    // skill VFX: capstones get their full class ultimate, everything else
+    // a kind-matched beat, aimed at the current enemy if there is one
+    const facingOffset = { up: [0, -50], down: [0, 50], left: [-50, 0], right: [50, 0] }[this.facing];
+    const enemyPos = this.quest.getEnemyPos?.();
+    const target = enemyPos ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
+    if (def.capstone) playUltimate(this, this.state.classId, { x: this.player.x, y: this.player.y }, [], target);
+    else playSkillFx(this, def, { x: this.player.x, y: this.player.y }, target);
+
     const rank = rankOf(this.state, id);
     this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
@@ -325,6 +339,36 @@ export default class WorldScene extends Phaser.Scene {
     });
     this.emitSkillbar();
     this.time.delayedCall((def.cd ?? 0) * 1000 + 50, () => this.emitSkillbar());
+  }
+
+  usePotion(pot) {
+    const now = this.time.now;
+    if ((this.potionCooldown ?? 0) > now) {
+      this.game.events.emit(EV.TOAST, { text: 'Catch your breath first.', duration: 1100 });
+      return;
+    }
+    if ((this.state.potions?.[pot] ?? 0) <= 0) {
+      this.game.events.emit(EV.TOAST, { text: `No ${pot.toUpperCase()} potions left.`, duration: 1400 });
+      return;
+    }
+    if (pot === 'hp' && this.state.hp >= this.stats.maxHp) return;
+    if (pot === 'mp' && (this.state.mp ?? 0) >= this.stats.maxMp) return;
+    this.state.potions[pot] -= 1;
+    this.potionCooldown = now + 8000;
+    if (pot === 'hp') {
+      const amount = Math.round(this.stats.maxHp * 0.5);
+      this.state.hp = Math.min(this.stats.maxHp, this.state.hp + amount);
+      this.emitHp();
+      this.showFloatText(this.player.x, this.player.y, `+${amount}`, '#7fe89a');
+    } else {
+      const amount = Math.round(this.stats.maxMp * 0.5);
+      this.state.mp = Math.min(this.stats.maxMp, (this.state.mp ?? 0) + amount);
+      this.emitMp();
+      this.showFloatText(this.player.x, this.player.y, `+${amount} MP`, '#7fb4ff');
+    }
+    playSkillFx(this, { kind: 'heal' }, { x: this.player.x, y: this.player.y });
+    this.emitSkillbar();
+    this.time.delayedCall(8050, () => this.emitSkillbar());
   }
 
   // floating combat number above a world position (damage, heals, misses)

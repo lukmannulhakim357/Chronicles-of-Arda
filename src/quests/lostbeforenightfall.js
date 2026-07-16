@@ -317,6 +317,11 @@ export default class LostBeforeNightfallQuest {
     }
   }
 
+  // current enemy position for skill-VFX aiming (WorldScene)
+  getEnemyPos() {
+    return this.wolf?.active ? { x: this.wolf.x, y: this.wolf.y } : null;
+  }
+
   // called from WorldScene when the player taps Attack (mirrors onPlayerAttack elsewhere)
   onPlayerAttack() {
     this.strikeWolf({ skillPct: 1, isMagic: false, critMult: 2 });
@@ -453,6 +458,9 @@ export default class LostBeforeNightfallQuest {
         this.state.waypointIndex = 3;
         grantXp(this.state, 25);
         grantGold(this.state, 45);
+        this.state.potions ??= { hp: 2, mp: 2 };
+        this.state.potions.hp += 1;
+        this.state.potions.mp += 1;
         this.scene.emitXp();
         this.scene.emitGold();
         this.autosave('The Great Forest — the path west');
@@ -466,7 +474,7 @@ export default class LostBeforeNightfallQuest {
               'Isilmë and Ancalimë are safe, and the wolf that stalked the dark has gone to ground. You carry a weapon now, and the memory of the first real fight of the march.',
               'The Vales of Anduin lie ahead — and with them, a choice that isn\'t yours to make alone.',
             ],
-            rewards: { xp: 25, gold: 45 },
+            rewards: { xp: 25, gold: 45, items: ['HP Potion ×1', 'MP Potion ×1'] },
             button: 'To the Road West',
             next: 'Journey',
           });
