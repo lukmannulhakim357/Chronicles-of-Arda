@@ -285,6 +285,11 @@ export default class VanishingQuest {
     }
   }
 
+  // current enemy position for skill-VFX aiming (WorldScene)
+  getEnemyPos() {
+    return this.shadow?.active ? { x: this.shadow.x, y: this.shadow.y } : null;
+  }
+
   // called when the player attacks (from WorldScene)
   onPlayerAttack() {
     this.hitShadow(1);
@@ -509,7 +514,9 @@ export default class VanishingQuest {
         this.setStage(5);
         this.naroFollowing = false;
         this.state.waypointIndex = 1;
+        grantXp(this.state, 20);
         grantGold(this.state, 40);
+        this.scene.emitXp();
         this.scene.emitGold();
         this.autosave('The shores of Cuiviénen — the eve of the Great Journey');
         this.scene.time.delayedCall(600, () => {
@@ -523,7 +530,7 @@ export default class VanishingQuest {
               'The Quest of “The Vanishing” is ended. Náro is home, and the name Eldar now belongs to your people.',
               'Westward lies a march of years: steppes and forests, mountains and wide wild lands, until the Sea itself — and beyond it, the Light.',
             ],
-            rewards: { gold: 40 },
+            rewards: { xp: 20, gold: 40 },
             button: 'To the Road West',
             next: 'Journey',
           });

@@ -209,6 +209,19 @@ export function setActionBarSlot(state, slotIndex, skillId) {
   state.actionBar[slotIndex] = skillId;
 }
 
+// The HUD skill wheel: a fixed 8-slot ring — 6 skill slots (every learned
+// Active in tree order; empty until learned) + 2 potion slots (HP & MP).
+// The wheel rotates in the HUD, so every learned skill stays reachable —
+// no 4-slot loadout cut.
+export function skillRing(state) {
+  const actives = learnedActives(state, state.classId);
+  const ring = [];
+  for (let i = 0; i < 6; i++) ring.push(actives[i] ? { type: 'skill', id: actives[i].id } : null);
+  ring.push({ type: 'potion', pot: 'hp' });
+  ring.push({ type: 'potion', pot: 'mp' });
+  return ring;
+}
+
 // ---------- Summoner: summon creatures ----------
 
 // Every summon derives its stats from the Summoner's *current* effective
