@@ -4,6 +4,8 @@ import * as steppes from './steppes.js';
 import StragglersQuest from '../quests/stragglers.js';
 import * as greatforest from './greatforest.js';
 import LostBeforeNightfallQuest from '../quests/lostbeforenightfall.js';
+import * as training from './training.js';
+import TrainingQuest from '../quests/training.js';
 
 // One entry per playable waypoint zone. WorldScene looks a zone up by
 // state.zone to build the map and instantiate its quest — this is the only
@@ -12,6 +14,7 @@ export const ZONES = {
   cuivienen: { build: cuivienen.build, Quest: VanishingQuest, questId: 'vanishing' },
   steppes: { build: steppes.build, Quest: StragglersQuest, questId: 'stragglers' },
   'great-forest': { build: greatforest.build, Quest: LostBeforeNightfallQuest, questId: 'lost-before-nightfall' },
+  training: { build: training.build, Quest: TrainingQuest, questId: 'training' }, // class-trial grounds, never saved
 };
 
 // A fresh quest-progress object for first entry into a zone (concept doc

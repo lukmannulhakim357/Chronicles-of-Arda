@@ -51,7 +51,7 @@ await page.waitForTimeout(900);
 await page.mouse.click(400 - 387 + 93 + 2 * 196, 120); // Loresinger (3rd col)
 await page.waitForTimeout(1400); // ultimate-preview overlay opens
 await page.screenshot({ path: `${OUT}/09b-ultimate-preview.png` });
-await page.mouse.click(492, 375); // "Begin as Loresinger"
+await page.mouse.click(568, 375); // "Begin as Loresinger" (right of Back / Try skills)
 await page.waitForTimeout(1200);
 await page.mouse.click(400, 390); // Wake
 await page.waitForTimeout(3200);

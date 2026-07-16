@@ -89,6 +89,7 @@ export const SaveSystem = {
   // Saves into whichever profile/campaign/slot the given scene's registry
   // currently points at (set once when a character is created or resumed).
   saveActive(scene, state, meta = {}) {
+    if (state?.training) return false; // class-trial runs are throwaway — never persist them
     const profileId = scene.registry.get('profileId');
     const campaignId = scene.registry.get('campaignId');
     const slotIndex = scene.registry.get('slotIndex');
