@@ -6,8 +6,9 @@ Middle-earth), built mobile-first with [Phaser 3](https://phaser.io) +
 browser. Play it live: **https://lukmannulhakim357.github.io/Chronicles-of-Arda/**
 
 **Current build: the Elf origin campaign — “The Great Journey”** (vertical
-slice, Waypoints 1–2 of 10 fully playable). Design source of truth:
-[`arda-rpg-concept.md`](arda-rpg-concept.md); build directives:
+slice, Waypoints 1–3 of 10 fully playable). Design source of truth:
+[`arda-rpg-concept.md`](arda-rpg-concept.md) + the skill-system companion doc
+[`arda-rpg-skills.md`](arda-rpg-skills.md); build directives:
 [`docs/great-journey-build-prompt.md`](docs/great-journey-build-prompt.md).
 
 > 📌 Repo "About" (top-right of the GitHub page) isn't editable from here —
@@ -22,8 +23,8 @@ slice, Waypoints 1–2 of 10 fully playable). Design source of truth:
 |---|---|
 | 1. Cuiviénen — "The Vanishing" | ✅ playable end-to-end |
 | 2. The Steppes — "The Stragglers" | ✅ playable end-to-end |
-| 3. The Great Forest | 📋 planned (next up) |
-| 4. Vales of Anduin — "Lenwë's Choice" | 📋 planned |
+| 3. The Great Forest — "Lost Before Nightfall" | ✅ playable end-to-end |
+| 4. Vales of Anduin — "Lenwë's Choice" | 📋 planned (next up) |
 | 5. Misty Mountains | 📋 planned |
 | 6. Rhovanion | 📋 planned |
 | 7. Ered Luin — "First Contact" | 📋 planned |
@@ -64,24 +65,75 @@ done — see [`docs/cutscene-art-needed.md`](docs/cutscene-art-needed.md)).
   concept doc's own framing of this waypoint as simpler filler content:
   1. Speak with Míriel, fallen behind the host
   2. Escort her west; forage and hunt three supply spots along the way
-  3. Lead her across the ford and rejoin the host — she and Tarion each
-     gift you a piece of armor, introducing **Inventory & Equipment**
-- **Inventory & Equipment** — introduced this waypoint as the first system
-  in a build-by-build gameplay tutorial (The Great Journey doubles as an
-  onboarding arc): Armor / Weapon / Trinket slots, open via the pause menu.
-  Equipping swaps gear in and out of your carry list and applies its stat
-  bonus immediately (Woven Steppe Cloak: +2 DEX, Herder's Jerkin: +3 VIT).
-  Weapon and Trinket stay locked — Waypoint 3 introduces weapons alongside
-  a first taste of basic-attack combat.
+  3. Lead her across the ford and rejoin the host — she gifts you a cloak
+     and boots, which now pauses on a **gear tutorial** (the Character
+     screen opens automatically, nudging you to equip your reward) before
+     the waypoint actually finishes. Tarion gifts a jerkin and bracers too.
+- **Waypoint 3 — The Great Forest**, fully playable: dense, dark woodland —
+  "no stars overhead" — and the quest **"Lost Before Nightfall"**, the
+  waypoint that introduces weapons and the first real fight:
+  1. Speak with Randir, worried the host has lost two people to the dark
+  2. Find Isilmë and Ancalimë, each lost among the trees; they follow you
+  3. Reach the clearing — Randir catches up and arms you with your class's
+     first weapon (unlocking the Weapon slot), a small tutorial for the
+     newly-visible Attack button
+  4. A wolf out of the dark — the game's first live fight, resolved by
+     `src/combat/`'s actual damage/accuracy/mitigation formulas rather than
+     a scripted HP pool: your equipped weapon and stats genuinely change
+     how the fight goes. Take too much damage and Randir steps in; win it
+     outright and the wolf just goes down.
+  5. Lead everyone the rest of the way to the path — waypoint complete
+  
+  The wolf's sprite is a **placeholder** — no dedicated animal art exists
+  yet, so it reuses the Waypoint 1 shadow-servant sheet, heavily retinted,
+  clearly noted in code as a stand-in (same "mark it, ship anyway"
+  convention already used for the [cutscene art placeholders](docs/cutscene-art-needed.md)).
 - **EXP & Leveling** — introduced at the very moment Oromë names you one of
   the Eldar: surviving the shadow-servant and his departure together grant
   exactly enough EXP to level up on the spot (concept doc §16.6 formula),
   and Oromë's own dialogue doubles as the in-fiction tutorial for spending
-  the 3 stat points you gain each level. The **Character** screen (pause
-  menu, or opened automatically on level-up) now has two tabs — **Gear**
-  (the old Inventory) and **Stats**, where you freely allocate points across
-  VIT/MAG/STR/DEX with a live Max HP/MP preview before confirming. The HUD
-  gains a level + XP bar under the HP bar.
+  the 3 stat points you gain each level. The HUD gains a level + XP bar
+  under the HP/MP bars, and the pause menu shows "Character (N)" whenever
+  points are unspent.
+- **Gear & Stats, redesigned as one screen** — the **Character** menu's
+  **Gear** tab is now a proper RPG paperdoll: 6 equipment slots (Head /
+  Chest / Gloves / Boots / Trinket / Weapon — Head, Trinket and Weapon stay
+  locked until later content fills them), with stat-point spending and the
+  full derived combat block (HP, MP, P-ATK, M-ATK, ATK-RATE, P-DEF, M-DEF,
+  Accuracy, Evasion, CRIT%) directly underneath, so equipping or unequipping
+  gear shows the real number change immediately. A pack grid sits alongside
+  it — tap an item to see its name/description/bonus, then Equip or Unequip
+  from the detail panel.
+- **Gold** — quests, waypoints and the odd "defeated something in the dark"
+  moment now pay out gold alongside EXP; the HUD shows a running total
+  top-right. Treasure chests and per-kill drops in future dungeons/wilds
+  hook into the same `grantGold()` system.
+- **Story Collection ("Tales" tab)** — every story card you've seen (waypoint
+  completions, major beats) is archived and replayable from the Character
+  screen, so you can revisit *Chronicles of Arda* as you go.
+- **Skill Trees & Action Bar** (design: [`arda-rpg-skills.md`](arda-rpg-skills.md))
+  — the Character menu's **Skills** tab is a real progression screen: every
+  class has its own fixed 8-skill tree (7 regular + 1 capstone, 6 Active + 2
+  Passive, 38 points to fully max — `src/data/skills.js`), unlocked in order
+  as you spend banked skill points, with a live points-spent counter. Once a
+  tree is fully maxed, further skill points auto-convert to bonus stat
+  points instead of banking uselessly. Below the tree, a 4-slot Action Bar
+  lets you assign any of your learned Active skills — tap a slot to cycle
+  through them, swappable anytime outside combat.
+- **Combat engine** (`src/combat/`) — damage/mitigation/accuracy/crit
+  formulas, MP/cast-time/cooldown gating, buffs/debuffs/DoTs/HoTs, simplified
+  threat/aggro targeting, a 3-tier companion-AI decision function (emergency
+  → role-reactive trigger → default rotation), and a boss controller
+  (HP-threshold phases + attack telegraphs) — pure, engine-agnostic logic
+  covered by `tools/logic-test-combat.mjs`. Waypoint 3's wolf fight is the
+  first live encounter actually driven by it (basic attacks only, both
+  directions — your equipped weapon and stats genuinely matter); the
+  threat/companion-AI/boss-phase pieces are still waiting on a fight with
+  more than one combatant on each side to plug into.
+- **Titles, Crafting** — stub tabs for systems that don't exist yet:
+  milestone titles that will grant bonus stats, and crafting professions
+  (Blacksmithing / Tailoring / Alchemy / Cooking). Clearly marked "Upcoming"
+  rather than hidden, so the shape of the full game is visible.
 - **The Road West** — the fixed 10-waypoint journey map. Waypoints 3–10 are
   scaffolded (name, terrain, story beat, planned quest) and show preview
   cards; they'll become playable zones in future builds.
@@ -123,12 +175,16 @@ public/assets/tiles/       terrain & decor tiles (see CREDITS.md)
 public/assets/art/         narrative illustrations (see CREDITS.md)
 src/scenes/                Boot, Title, CampaignSelect, CharacterSlot,
                             Creation, Story, World, Journey, UI, Character
-src/world/                 zone builders (cuivienen, steppes) + the zone registry
-src/quests/                quest scripts (vanishing, stragglers)
+src/world/                 zone builders (cuivienen, steppes, greatforest) + the zone registry
+src/quests/                quest scripts (vanishing, stragglers, lostbeforenightfall)
 src/systems/               save system (profiles/campaigns/slots), game state
-src/data/                  campaigns, kindreds, classes, waypoints, items, leveling
+src/data/                  campaigns, kindreds, classes, waypoints, items,
+                           leveling, skills (skill trees + summon data)
+src/combat/                damage/threat/AI/boss-phase engine (not yet wired
+                           into a playable battle — see README below)
 src/ui/                    shared widgets + the DOM text-input modal
 tools/compose-characters.mjs  rebuilds character sheets from LPC layers
+tools/logic-test-combat.mjs   pure Node test for the skill/combat engine
 ```
 
 ## Asset pipeline & licensing
@@ -148,7 +204,19 @@ marked placeholder frame in-game until they're ready.
 
 ## Roadmap (next builds)
 
-1. Waypoint 3 — The Great Forest (guide stragglers back to the path by night)
-2. Class kit differentiation (weapon sprites, first skills per class)
-3. Waypoints 4–10 following the chain in `src/data/waypoints.js`
-4. Valinor as an explorable hub + persistent teleport (post-campaign scope)
+1. Waypoint 4 — Vales of Anduin ("Lenwë's Choice"), the campaign's first
+   branch point — Lenwë's Nandor splitting from the host is historically
+   fixed, but a companion NPC's personal choice can shift
+2. Class kit differentiation (weapon sprites + skill animation cues — the
+   skill trees themselves are already fully built, see the Skill Trees
+   section) and a real wolf/beast sprite to replace Waypoint 3's retinted
+   placeholder
+3. Waypoints 5–10 following the chain in `src/data/waypoints.js`
+4. Multi-combatant encounters that actually exercise the threat/aggro,
+   companion-AI, and boss-phase/telegraph pieces of `src/combat/` — the
+   Waypoint 3 wolf only needed the damage/accuracy/mitigation core
+5. Milestone titles, crafting professions, and richer treasure/monster gold
+   drops as dungeons/wilderness content ships
+6. Real paperdoll/item-icon art to replace the current vector/monogram
+   placeholders in the Gear tab
+7. Valinor as an explorable hub + persistent teleport (post-campaign scope)

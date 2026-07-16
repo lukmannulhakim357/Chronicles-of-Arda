@@ -1,7 +1,8 @@
-// Verifies the Inventory/Armor system introduced in Waypoint 2: seed a
-// character mid-quest (stage 2, about to cross the ford), cross to get the
-// cloak, talk to Tarion for the jerkin, open Inventory from the pause menu,
-// equip/swap gear, and confirm stats + persistence all behave.
+// Verifies the Inventory/Equipment system: seed a character mid-quest (stage
+// 2, about to cross the ford), cross to get the cloak+boots (which now opens
+// a gear tutorial before the waypoint finishes), inspect+equip from the pack
+// grid, confirm the waypoint-completion flow still continues correctly, then
+// re-enter to get Tarion's jerkin+bracers and swap gear from the pause menu.
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
@@ -32,10 +33,11 @@ await page.evaluate(() => {
   const profile = {
     id: 'inv-test', name: 'Gear Tester', createdAt: Date.now(), updatedAt: Date.now(),
     campaigns: { greatJourney: { slots: [
-      { version: 1, kindred: 'vanyar', classId: 'warrior', stats: { VIT: 10, MAG: 2, STR: 10, DEX: 6 }, hp: 130,
+      { version: 1, kindred: 'vanyar', classId: 'warrior', stats: { VIT: 10, MAG: 2, STR: 10, DEX: 6 }, hp: 130, mp: 32, gold: 0,
         waypointIndex: 1, zone: 'steppes', pos: null,
         quest: { id: 'stragglers', stage: 2, flags: { gathered: { forage1: true, forage2: true, hunt1: true } } },
-        seenIntro: true, equipment: { armor: null, weapon: null, trinket: null }, inventory: [],
+        seenIntro: true, equipment: { head: null, chest: null, gloves: null, boots: null, accessory: null, weapon: null }, inventory: [],
+        level: 1, xp: 0, statPoints: 0, skillPoints: 0, titles: [], seenCards: [],
         savedAt: Date.now(), lastWhere: 'The open steppe' },
       null, null, null,
     ] } },
@@ -55,74 +57,84 @@ await page.waitForTimeout(900);
 await page.mouse.click(400, 110);
 await page.waitForTimeout(2500);
 
-// cross the ford -> get the cloak
+// cross the ford -> get the cloak + boots -> gear tutorial auto-opens the
+// Character scene (World+UI paused) before the waypoint actually finishes
 await tp(32.5, 8);
 await page.keyboard.press('E'); await page.waitForTimeout(400);
-await tapSheet(2); // Miriel's 2 lines, onDone gives cloak + finishQuest
-await page.waitForTimeout(1000);
-let s = await readState();
-console.log('after crossing — inventory:', JSON.stringify(s.inventory), 'stage:', s.quest.stage);
-await page.screenshot({ path: `${OUT}/01-got-cloak-toast.png` });
+await tapSheet(2); // Míriel's 2 lines, onDone gives both items + opens tutorial
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${OUT}/01-gear-tutorial.png` });
 
-// wait out the toast, then the story card should appear -> continue to Journey
-await page.waitForTimeout(2500);
-await page.screenshot({ path: `${OUT}/02-story-card.png` });
-await page.mouse.click(400, 390); // "To the Road West"
+let s = await page.evaluate(() => {
+  const c = window.__game.scene.getScene('Character');
+  return { inventory: c.state.inventory, equipment: c.state.equipment };
+});
+console.log('gear tutorial open — inventory:', JSON.stringify(s.inventory), 'equipment:', JSON.stringify(s.equipment));
+
+// inspect the cloak in the pack grid (first cell), then tap Equip
+await page.mouse.click(277, 116);
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${OUT}/02-inspecting-cloak.png` });
+await page.mouse.click(742, 360); // Equip button in the detail panel
+await page.waitForTimeout(500);
+s = await page.evaluate(() => {
+  const c = window.__game.scene.getScene('Character');
+  return { inventory: c.state.inventory, equipment: c.state.equipment };
+});
+console.log('after equip cloak:', JSON.stringify(s));
+await page.screenshot({ path: `${OUT}/03-after-equip-cloak.png` });
+
+// close the tutorial -> World/UI resume -> waypoint finishes -> Story scene
+await page.mouse.click(400, 424);
+await page.waitForTimeout(1200);
+const active1 = await page.evaluate(() => window.__game.scene.getScenes(true).map((sc) => sc.scene.key));
+console.log('active scenes after closing gear tutorial:', JSON.stringify(active1));
+await page.screenshot({ path: `${OUT}/04-story-card.png` });
+
+// story card -> Journey
+await page.mouse.click(400, 390);
 await page.waitForTimeout(1200);
 
-// re-enter The Steppes (now at stage 3, done, waypointIndex=2 so the road's
-// frontier button points at Great Forest instead) — tap Steppes' own node
+// re-enter The Steppes (stage 3, done) to get Tarion's jerkin+bracers
 await page.mouse.click(462, 334);
 await page.waitForTimeout(2500);
 await tp(8, 21);
 await page.keyboard.press('E'); await page.waitForTimeout(400);
-await tapSheet(2); // Tarion's 2 lines -> gives jerkin
+await tapSheet(2); // Tarion's 2 lines -> gives jerkin + bracers
 await page.waitForTimeout(1000);
 s = await readState();
 console.log('after Tarion — inventory:', JSON.stringify(s.inventory), 'equipment:', JSON.stringify(s.equipment));
-await page.screenshot({ path: `${OUT}/03-got-jerkin.png` });
+await page.screenshot({ path: `${OUT}/05-got-jerkin-bracers.png` });
 
-// dismiss the inventory-tip toast, then open pause menu -> Inventory
+// dismiss the inventory-tip toast, then open pause menu -> Character
 await page.waitForTimeout(2000);
-await page.mouse.click(770, 20); // hamburger
+await page.mouse.click(770, 20);
 await page.waitForTimeout(400);
-await page.screenshot({ path: `${OUT}/04-pause-menu.png` });
-// Inventory is item index 1: y = height/2-118+1*52 = 225-118+52 = 159
-await page.mouse.click(400, 159);
+await page.screenshot({ path: `${OUT}/06-pause-menu.png` });
+await page.mouse.click(400, 159); // Character
 await page.waitForTimeout(700);
-await page.screenshot({ path: `${OUT}/05-inventory-open.png` });
+await page.screenshot({ path: `${OUT}/07-gear-tab.png` });
 
-const baseMaxHp = await page.evaluate(() => {
-  const w = window.__game.scene.getScene('World');
-  return w.stats.maxHp;
+const baseMaxHp = await page.evaluate(() => window.__game.scene.getScene('World').stats.maxHp);
+console.log('maxHp before jerkin swap:', baseMaxHp);
+
+// inspect+equip the jerkin (2nd pack cell, swaps out the cloak) then close
+await page.mouse.click(329, 116);
+await page.waitForTimeout(400);
+await page.mouse.click(742, 360);
+await page.waitForTimeout(500);
+s = await page.evaluate(() => {
+  const c = window.__game.scene.getScene('Character');
+  return { inventory: c.state.inventory, equipment: c.state.equipment };
 });
-console.log('maxHp before equip:', baseMaxHp);
+console.log('after equip jerkin (swap) — equipment:', JSON.stringify(s.equipment), 'inventory:', JSON.stringify(s.inventory));
+await page.screenshot({ path: `${OUT}/08-after-swap.png` });
 
-// equip the first carried item (Gear tab under the Gear/Stats tab row):
-// bodyTop = tabY(42)+30=72; slotY = bodyTop+slotH/2(46)+6=124; listTop = slotY+46+24=194; y0 = listTop+26=220; row0 center = y0+rowH/2(28)=248
-await page.mouse.click(400, 248);
-await page.waitForTimeout(500);
-await page.screenshot({ path: `${OUT}/06-after-equip.png` });
-
-s = await readState();
-console.log('after equip 1 — equipment:', JSON.stringify(s.equipment), 'inventory:', JSON.stringify(s.inventory));
-
-// equip the second carried item (now sitting at slot 0 again since equip() swaps)
-await page.mouse.click(400, 248);
-await page.waitForTimeout(500);
-s = await readState();
-console.log('after equip 2 (swap) — equipment:', JSON.stringify(s.equipment), 'inventory:', JSON.stringify(s.inventory));
-await page.screenshot({ path: `${OUT}/07-after-swap.png` });
-
-// close inventory, verify World resumed and maxHp reflects the swapped armor bonus
-await page.mouse.click(400, 410); // Close button
+await page.mouse.click(400, 424); // Close
 await page.waitForTimeout(700);
-const maxHpAfter = await page.evaluate(() => {
-  const w = window.__game.scene.getScene('World');
-  return w.stats.maxHp;
-});
-console.log('maxHp after equip+close:', maxHpAfter);
-await page.screenshot({ path: `${OUT}/08-resumed-world.png` });
+const maxHpAfter = await page.evaluate(() => window.__game.scene.getScene('World').stats.maxHp);
+console.log('maxHp after jerkin equip+close:', maxHpAfter);
+await page.screenshot({ path: `${OUT}/09-resumed-world.png` });
 
 const errorsOut = errors.filter((e) => !e.includes('404'));
 console.log('ERRORS:', errorsOut.length ? errorsOut.join('\n') : 'none');

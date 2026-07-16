@@ -4,6 +4,8 @@ import { itemById } from '../data/items.js';
 // The per-run game state, stored in the Phaser registry under 'state'
 // and serialized as-is by SaveSystem.
 
+export const EQUIPMENT_SLOTS = ['head', 'chest', 'gloves', 'boots', 'accessory', 'weapon'];
+
 export function newGameState(kindredId, classId) {
   const klass = classById(classId);
   const d = derivedStats(klass.stats);
@@ -13,25 +15,52 @@ export function newGameState(kindredId, classId) {
     classId,
     stats: { ...klass.stats },
     hp: d.maxHp,
+    mp: d.maxMp,
+    gold: 0,
     waypointIndex: 0, // index into WAYPOINTS — the furthest reached
     zone: 'cuivienen',
     pos: null, // null → use the zone's default spawn
     quest: { id: 'vanishing', stage: 0, flags: {} },
     seenIntro: false,
-    equipment: { armor: null, weapon: null, trinket: null },
+    equipment: { head: null, chest: null, gloves: null, boots: null, accessory: null, weapon: null },
     inventory: [],
     level: 1,
     xp: 0,
     statPoints: 0,
     skillPoints: 0,
+    skills: {},
+    actionBar: [null, null, null, null],
+    titles: [],
+    seenCards: [],
   };
+}
+
+// Migrates the old 3-slot equipment shape (armor/weapon/trinket) to the
+// current 6-slot paperdoll, preserving whatever was equipped under 'armor'.
+export function normalizeEquipment(equipment) {
+  const eq = { ...(equipment ?? {}) };
+  if (eq.armor && !eq.chest) eq.chest = eq.armor;
+  delete eq.armor;
+  delete eq.trinket;
+  for (const key of EQUIPMENT_SLOTS) eq[key] = eq[key] ?? null;
+  return eq;
 }
 
 export function getState(scene) {
   return scene.registry.get('state');
 }
 
+// Every write goes through here, so this is the one place old saves get
+// migrated/defaulted to whatever shape the current build expects.
 export function setState(scene, state) {
+  state.equipment = normalizeEquipment(state.equipment);
+  state.inventory ??= [];
+  state.gold ??= 0;
+  state.titles ??= [];
+  state.seenCards ??= [];
+  state.skills ??= {};
+  state.actionBar ??= [null, null, null, null];
+  if (state.mp == null) state.mp = derivedStats(effectiveStats(state)).maxMp;
   scene.registry.set('state', state);
 }
 

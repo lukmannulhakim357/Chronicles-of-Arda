@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS } from '../config.js';
 import { makeTextButton, starfield } from '../ui/widgets.js';
+import { getState, setState } from '../systems/GameState.js';
+import { SaveSystem } from '../systems/SaveSystem.js';
 
 // Reusable narration card. Two art states:
 //   - `art`: a texture key already loaded in BootScene — shown full-size,
@@ -29,6 +31,7 @@ export default class StoryScene extends Phaser.Scene {
     starfield(this, Math.floor((width * height) / 11000));
     const cx = width / 2;
     const d = this.data_;
+    this.recordCard(d);
     const BOTTOM_RESERVE = 90; // button + margin
     const GAP = 14;
 
@@ -110,5 +113,20 @@ export default class StoryScene extends Phaser.Scene {
     makeTextButton(this, cx, height - 46, Math.min(260, width - 80), 52, d.button ?? 'Continue', () => {
       this.scene.start(d.next, d.nextData ?? {});
     });
+  }
+
+  // Story cards with a stable `id` get archived into the run's Collection
+  // (concept doc-adjacent: "Chronicles of Arda" as a re-browsable record).
+  // Cards with no `id` (unbuilt-waypoint previews, campaign confirmations)
+  // aren't real lore beats, so they're never archived.
+  recordCard(d) {
+    if (!d.id) return;
+    const state = getState(this);
+    if (!state) return;
+    state.seenCards ??= [];
+    if (state.seenCards.some((c) => c.id === d.id)) return;
+    state.seenCards.push({ id: d.id, title: d.title, paragraphs: d.paragraphs, art: d.art, artFlag: d.artFlag, seenAt: Date.now() });
+    setState(this, state);
+    SaveSystem.saveActive(this, state);
   }
 }

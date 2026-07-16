@@ -38,7 +38,9 @@ export const EV = {
   ATTACK_SET: 'ui:attack-set', // { visible:boolean }
   ATTACK_PRESSED: 'ui:attack-pressed',
   HP: 'ui:hp', // { hp, maxHp }
+  MP: 'ui:mp', // { mp, maxMp }
   XP: 'ui:xp', // { level, xp, xpToNext }
+  GOLD: 'ui:gold', // { gold }
   MENU_SAVE: 'menu:save',
   MENU_QUIT: 'menu:quit',
   MENU_CHARACTER: 'menu:character',

@@ -40,7 +40,9 @@ export default class UIScene extends Phaser.Scene {
       g.off(EV.ACTION_SET, this.onActionSet, this);
       g.off(EV.ATTACK_SET, this.onAttackSet, this);
       g.off(EV.HP, this.onHp, this);
+      g.off(EV.MP, this.onMp, this);
       g.off(EV.XP, this.onXp, this);
+      g.off(EV.GOLD, this.onGold, this);
     });
   }
 
@@ -71,12 +73,16 @@ export default class UIScene extends Phaser.Scene {
     this.hpBg.setVisible(false);
     this.hpFill.setVisible(false);
 
+    // mp bar
+    this.mpBg = this.add.rectangle(12, 70, 120, 6, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
+    this.mpFill = this.add.rectangle(13, 70, 118, 4, 0x4a7fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
+
     // level + xp bar
-    this.lvlText = this.add.text(12, 70, '', {
+    this.lvlText = this.add.text(12, 82, '', {
       fontFamily: FONTS.body, fontSize: '11px', color: '#d9b968',
     }).setDepth(60).setVisible(false);
-    this.xpBg = this.add.rectangle(12, 86, 120, 5, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
-    this.xpFill = this.add.rectangle(13, 86, 118, 3, 0x6a8fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
+    this.xpBg = this.add.rectangle(12, 98, 120, 5, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
+    this.xpFill = this.add.rectangle(13, 98, 118, 3, 0x6a8fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
 
     // menu button
     this.menuBtn = this.add.text(0, 0, '☰', {
@@ -84,6 +90,12 @@ export default class UIScene extends Phaser.Scene {
       backgroundColor: 'rgba(16,24,48,0.75)', padding: { x: 12, y: 6 },
     }).setDepth(60).setInteractive({ useHandCursor: true });
     this.menuBtn.on('pointerup', () => this.togglePause());
+
+    // gold, top-right under the menu button
+    this.goldText = this.add.text(0, 0, '🪙 0', {
+      fontFamily: FONTS.body, fontSize: '13px', color: '#d9b968',
+      backgroundColor: 'rgba(16,24,48,0.75)', padding: { x: 8, y: 4 },
+    }).setDepth(60).setVisible(false);
 
     // dialogue bottom sheet
     this.sheet = this.add.container(0, 0).setDepth(80).setVisible(false);
@@ -133,6 +145,7 @@ export default class UIScene extends Phaser.Scene {
   layout() {
     const { width, height } = this.scale;
     this.menuBtn.setPosition(width - this.menuBtn.width - 10, 8);
+    this.goldText.setPosition(width - this.goldText.width - 10, this.menuBtn.y + this.menuBtn.height + 6);
     this.actionBtn.cont.setPosition(width - 62, height - 66);
     this.attackBtn.cont.setPosition(width - 62, height - 160);
     if (this.dialogue) this.layoutSheet();
@@ -148,7 +161,9 @@ export default class UIScene extends Phaser.Scene {
     g.on(EV.ACTION_SET, this.onActionSet, this);
     g.on(EV.ATTACK_SET, this.onAttackSet, this);
     g.on(EV.HP, this.onHp, this);
+    g.on(EV.MP, this.onMp, this);
     g.on(EV.XP, this.onXp, this);
+    g.on(EV.GOLD, this.onGold, this);
   }
 
   onTracker(data) {
@@ -199,6 +214,18 @@ export default class UIScene extends Phaser.Scene {
     this.xpFill.setVisible(true);
     const f = Phaser.Math.Clamp(xp / xpToNext, 0, 1);
     this.xpFill.width = 118 * f;
+  }
+
+  onMp({ mp, maxMp }) {
+    this.mpBg.setVisible(true);
+    this.mpFill.setVisible(true);
+    const f = Phaser.Math.Clamp(mp / maxMp, 0, 1);
+    this.mpFill.width = 118 * f;
+  }
+
+  onGold({ gold }) {
+    this.goldText.setText(`🪙 ${gold}`).setVisible(true);
+    this.layout();
   }
 
   // ---------- dialogue ----------
@@ -291,7 +318,8 @@ export default class UIScene extends Phaser.Scene {
     const items = [veil];
     const mk = (i, label, cb) =>
       items.push(makeTextButton(this, width / 2, height / 2 - 118 + i * 52, bw, 48, label, cb).setDepth(96));
-    const pts = this.registry.get('state')?.statPoints ?? 0;
+    const st = this.registry.get('state');
+    const pts = (st?.statPoints ?? 0) + (st?.skillPoints ?? 0);
     mk(0, 'Resume', () => this.closePause());
     mk(1, pts > 0 ? `Character (${pts})` : 'Character', () => {
       this.closePause();
