@@ -384,7 +384,10 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
       return 1800;
     }
     case 'captain': {
-      // War Horn's Call — the horn sounds, and the Guard answers
+      // War Horn's Call — the horn sounds, and the Guard answers, STAYS,
+      // and fights: 2 swordsmen + 2 archers hold formation for ~5s, each
+      // striking at the target repeatedly before the light releases them
+      ensureWeaponTextures(scene);
       for (let i = 0; i < 3; i++) ring(scene, caster.x, caster.y - 10, { tint: 0xf2d06b, radius: 70 + i * 25, duration: 500, delay: i * 160 });
       const spots = [
         [-46, -20],
@@ -392,20 +395,37 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
         [-46, 26],
         [46, 26],
       ];
-      // the Guard answers in full kit: armored elf-warden sprites, swords
-      // drawn — 2 swordsmen up front, 2 archers behind (bows)
-      spots.forEach((s, i) =>
-        ghost(scene, caster.x + s[0], caster.y + s[1], 'npc_elf_hunter', {
-          tint: 0xaac8f0,
-          delay: 500 + i * 130,
-          duration: 1200,
-          toX: t.x + s[0] * 0.6,
-          toY: t.y + s[1] * 0.6,
-          weapon: i < 2 ? 'sword' : 'bow',
-        })
-      );
+      spots.forEach((s, i) => {
+        const gx = caster.x + s[0];
+        const gy = caster.y + s[1];
+        const weaponKey = i < 2 ? 'sword' : 'bow';
+        const spr = scene.add.sprite(gx, gy, 'npc_elf_hunter', 10 * 13).setTint(0xaac8f0).setAlpha(0).setDepth(59000);
+        const wpn = scene.add.image(gx + 9, gy + 2, `fxw-${weaponKey}`).setTint(0xd8e8ff).setAlpha(0).setDepth(59001).setRotation(0.5);
+        const parts = [spr, wpn];
+        scene.tweens.add({ targets: parts, delay: 450 + i * 130, alpha: 0.9, duration: 300 });
+        // each guardsman lunges at the target twice, swinging, then returns
+        for (let strike = 0; strike < 2; strike++) {
+          scene.time.delayedCall(1300 + i * 350 + strike * 1600, () => {
+            if (!spr.active) return;
+            spr.play(`npc_elf_hunter-slash-right`, true);
+            scene.tweens.add({
+              targets: parts,
+              x: `+=${(t.x - spr.x) * 0.55}`,
+              y: `+=${(t.y - spr.y) * 0.55}`,
+              duration: 240,
+              ease: 'Quad.easeIn',
+              yoyo: true,
+              onYoyo: () => burst(scene, t.x, t.y, { tint: 0xd8e8ff, count: 5, speed: 70, lifespan: 300, scale: 0.22 }),
+            });
+          });
+        }
+        // released after their ~5s of service
+        scene.time.delayedCall(5200 + i * 130, () => {
+          scene.tweens.add({ targets: parts, alpha: 0, duration: 450, onComplete: () => parts.forEach((p) => p.destroy()) });
+        });
+      });
       everyone.forEach((m, i) => pillar(scene, m.x, m.y + 12, { tint: TINT.buff, h: 80, delay: 700 + i * 120 }));
-      return 2400;
+      return 5600; // the Guard's full tour of duty — previews wait for it
     }
     case 'summoner': {
       // Call of the Wild — every bond answers at once

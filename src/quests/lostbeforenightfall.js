@@ -322,6 +322,13 @@ export default class LostBeforeNightfallQuest {
     return this.wolf?.active ? { x: this.wolf.x, y: this.wolf.y } : null;
   }
 
+  // enemy list with HP, for auto-aim's lowest-HP targeting
+  getEnemies() {
+    return this.wolf?.active && this.wolfCombatant
+      ? [{ x: this.wolf.x, y: this.wolf.y, hp: this.wolfCombatant.hp }]
+      : [];
+  }
+
   // called from WorldScene when the player taps Attack (mirrors onPlayerAttack elsewhere)
   onPlayerAttack() {
     this.strikeWolf({ skillPct: 1, isMagic: false, critMult: 2 });
@@ -329,7 +336,7 @@ export default class LostBeforeNightfallQuest {
 
   // action-bar skills hit through the same live-combat path, harder
   onPlayerSkill(def, rank = 1) {
-    this.strikeWolf({ skillPct: def.damagePct ?? 1.4, isMagic: !!def.isMagic, critMult: def.critMult ?? 2, rank });
+    this.strikeWolf({ skillPct: def.damagePct ?? 1.4, isMagic: !!def.isMagic, critMult: def.critMult ?? 2, rank, isSkill: true });
   }
 
   // summon dives resolve as light Magic hits (summon damage is always
@@ -338,11 +345,12 @@ export default class LostBeforeNightfallQuest {
     this.strikeWolf({ skillPct: 0.55, isMagic: true, critMult: 2, skipRange: true });
   }
 
-  strikeWolf({ skillPct, isMagic, critMult, rank = 1, skipRange = false }) {
+  strikeWolf({ skillPct, isMagic, critMult, rank = 1, skipRange = false, isSkill = false }) {
     if (this.encounterOver || !this.wolf?.active || !isAlive(this.wolfCombatant)) return;
     const player = this.scene.player;
+    const range = this.scene.getAttackRangePx?.(isSkill) ?? 84;
     const d = skipRange ? 0 : Phaser.Math.Distance.Between(player.x, player.y, this.wolf.x, this.wolf.y);
-    if (d > 80) {
+    if (d > range) {
       this.scene.showFloatText(player.x, player.y, 'Too far!', '#9aa4bc');
       return;
     }
