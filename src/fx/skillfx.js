@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ensureWeaponTextures } from './weapons.js';
 
 // Skill & ultimate visual effects — all procedural (tweens, particles,
 // graphics) over the tiny 'glow'/'px-star' textures BootScene already
@@ -126,22 +127,30 @@ function streak(scene, x1, y1, x2, y2, { tint = 0xffffff, duration = 220, delay 
   });
 }
 
-function ghost(scene, x, y, sheet, { tint = 0x9ac8ff, duration = 900, delay = 0, toX = x, toY = y, scale = 1 } = {}) {
-  const s = scene.add.sprite(x, y, sheet, 10 * 13).setTint(tint).setAlpha(0).setDepth(59000).setScale(scale);
+function ghost(scene, x, y, sheet, { tint = 0x9ac8ff, duration = 900, delay = 0, toX = x, toY = y, scale = 1, weapon = null } = {}) {
+  const parts = [scene.add.sprite(x, y, sheet, 10 * 13).setTint(tint).setAlpha(0).setDepth(59000).setScale(scale)];
+  if (weapon) {
+    ensureWeaponTextures(scene);
+    parts.push(
+      scene.add.image(x + 9, y + 2, `fxw-${weapon}`).setTint(tint).setAlpha(0).setDepth(59001).setScale(scale).setRotation(0.5)
+    );
+  }
+  const dx = toX - x;
+  const dy = toY - y;
   scene.tweens.add({
-    targets: s,
+    targets: parts,
     delay,
-    alpha: { from: 0, to: 0.75 },
+    alpha: { from: 0, to: 0.85 },
     duration: duration * 0.3,
     onComplete: () => {
       scene.tweens.add({
-        targets: s,
-        x: toX,
-        y: toY,
+        targets: parts,
+        x: `+=${dx}`,
+        y: `+=${dy}`,
         alpha: 0,
         duration: duration * 0.7,
         ease: 'Sine.easeIn',
-        onComplete: () => s.destroy(),
+        onComplete: () => parts.forEach((p) => p.destroy()),
       });
     },
   });
@@ -167,6 +176,36 @@ function magicCircle(scene, x, y, { tint = TINT.magic, radius = 26, duration = 9
     ease: 'Sine.easeOut',
     onComplete: () => g.destroy(),
   });
+}
+
+// floating music glyphs — the Loresinger's whole kit is song, so its
+// skills carry visible notes, not generic sparkles
+export function musicNotes(scene, x, y, { count = 5, tint = '#f2d06b', delay = 0, spread = 30 } = {}) {
+  const glyphs = ['♪', '♫', '♩', '♬'];
+  for (let i = 0; i < count; i++) {
+    const t = scene.add
+      .text(x + Phaser.Math.Between(-spread, spread), y + Phaser.Math.Between(-8, 8), glyphs[i % glyphs.length], {
+        fontFamily: 'serif',
+        fontSize: `${Phaser.Math.Between(12, 18)}px`,
+        color: tint,
+        stroke: '#05060f',
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5)
+      .setDepth(59020)
+      .setAlpha(0);
+    scene.tweens.add({
+      targets: t,
+      delay: delay + i * 110,
+      alpha: { from: 0.95, to: 0 },
+      y: t.y - Phaser.Math.Between(34, 58),
+      x: t.x + Phaser.Math.Between(-14, 14),
+      angle: Phaser.Math.Between(-25, 25),
+      duration: 950,
+      ease: 'Sine.easeOut',
+      onComplete: () => t.destroy(),
+    });
+  }
 }
 
 function cracks(scene, x, y, { tint = 0xf2b06b, count = 8, length = 55, duration = 700 } = {}) {
@@ -199,8 +238,10 @@ function flashVeil(scene, { tint = 0x05060f, alpha = 0.55, duration = 260 } = {}
 
 // ---------- regular skills: one readable beat per kind ----------
 
-export function playSkillFx(scene, def, caster, target) {
+export function playSkillFx(scene, def, caster, target, classId = null) {
   const t = target ?? caster;
+  // every Loresinger skill is a song — notes fly on all of them
+  if (classId === 'loresinger') musicNotes(scene, caster.x, caster.y - 14, { count: 4 });
   switch (def.kind) {
     case 'heal':
     case 'hot':
@@ -275,9 +316,11 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
       // Anthem of Valinor — the song of the West made visible
       pillar(scene, caster.x, caster.y + 12, { tint: TINT.gold, h: 120, w: 34 });
       for (let i = 0; i < 3; i++) ring(scene, caster.x, caster.y, { tint: TINT.gold, radius: 90 + i * 35, duration: 800, delay: i * 260 });
+      musicNotes(scene, caster.x, caster.y - 20, { count: 8, spread: 44 });
       everyone.forEach((m, i) => {
         pillar(scene, m.x, m.y + 12, { tint: TINT.buff, h: 84, delay: 500 + i * 140 });
         rise(scene, m.x, m.y, { tint: TINT.buff, count: 14, lifespan: 1100 });
+        musicNotes(scene, m.x, m.y - 16, { count: 4, delay: 600 + i * 160 });
       });
       burst(scene, caster.x, caster.y - 60, { tint: 0xfff2c8, count: 16, speed: 110 });
       return 2400;
@@ -349,13 +392,16 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
         [-46, 26],
         [46, 26],
       ];
+      // the Guard answers in full kit: armored elf-warden sprites, swords
+      // drawn — 2 swordsmen up front, 2 archers behind (bows)
       spots.forEach((s, i) =>
         ghost(scene, caster.x + s[0], caster.y + s[1], 'npc_elf_hunter', {
-          tint: 0x9ac8ff,
+          tint: 0xaac8f0,
           delay: 500 + i * 130,
           duration: 1200,
           toX: t.x + s[0] * 0.6,
           toY: t.y + s[1] * 0.6,
+          weapon: i < 2 ? 'sword' : 'bow',
         })
       );
       everyone.forEach((m, i) => pillar(scene, m.x, m.y + 12, { tint: TINT.buff, h: 80, delay: 700 + i * 120 }));

@@ -10,6 +10,8 @@ import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
+import { playWeaponSwing } from '../fx/weapons.js';
+import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 
 const SPEED = 150;
 
@@ -272,6 +274,8 @@ export default class WorldScene extends Phaser.Scene {
     this.attackCooldown = this.time.now + 550;
     this.attacking = true;
     this.player.play(`${this.sheet}-slash-${this.facing}`, true);
+    // equipped weapon appears in hand and swings with the attack
+    if (this.state.equipment?.weapon) playWeaponSwing(this, this.player, this.state.equipment.weapon, this.facing, { skill: false });
     // small forward step so a standing attack still reads as a strike,
     // not a frozen sprite
     const step = { up: [0, -8], down: [0, 8], left: [-8, 0], right: [8, 0] }[this.facing];
@@ -324,13 +328,19 @@ export default class WorldScene extends Phaser.Scene {
     const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
     this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
 
+    // equipped weapon swings bigger on a skill than on a basic attack
+    if (this.state.equipment?.weapon) playWeaponSwing(this, this.player, this.state.equipment.weapon, this.facing, { skill: true });
+
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one
     const facingOffset = { up: [0, -50], down: [0, 50], left: [-50, 0], right: [50, 0] }[this.facing];
     const enemyPos = this.quest.getEnemyPos?.();
     const target = enemyPos ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
     if (def.capstone) playUltimate(this, this.state.classId, { x: this.player.x, y: this.player.y }, [], target);
-    else playSkillFx(this, def, { x: this.player.x, y: this.player.y }, target);
+    else playSkillFx(this, def, { x: this.player.x, y: this.player.y }, target, this.state.classId);
+
+    // Summoner calls manifest an actual creature that follows and fights
+    if (def.kind === 'summon') this.manifestSummon(def);
 
     const rank = rankOf(this.state, id);
     this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));
@@ -339,6 +349,25 @@ export default class WorldScene extends Phaser.Scene {
     });
     this.emitSkillbar();
     this.time.delayedCall((def.cd ?? 0) * 1000 + 50, () => this.emitSkillbar());
+  }
+
+  // spawn the creature form(s) for a Summoner call — Call of the Wild
+  // brings every unlocked creature at once for its short 8s window
+  manifestSummon(def) {
+    this.activeSummons ??= [];
+    const getEnemy = () => this.quest.getEnemyPos?.() ?? null;
+    const onHit = (form) => this.quest.onSummonHit?.(form);
+    if (def.capstone) {
+      const unlocked = Object.entries(SUMMON_FORMS).filter(([skillId]) => (this.state.skills?.[skillId] ?? 0) >= 1);
+      unlocked.forEach(([, form], i) => {
+        this.time.delayedCall(i * 220, () => {
+          this.activeSummons.push(spawnSummon(this, form, this.player, getEnemy, onHit, 8000));
+        });
+      });
+      return;
+    }
+    const form = SUMMON_FORMS[def.id];
+    if (form) this.activeSummons.push(spawnSummon(this, form, this.player, getEnemy, onHit, 20000));
   }
 
   usePotion(pot) {
