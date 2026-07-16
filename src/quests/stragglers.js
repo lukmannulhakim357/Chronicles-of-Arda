@@ -3,6 +3,7 @@ import { EV } from '../config.js';
 import { tilesToPx, POINTS } from '../world/steppes.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { grantXp, grantGold } from '../data/leveling.js';
+import { itemById, bonusLine } from '../data/items.js';
 
 // Quest 2 — "The Stragglers" (waypoint 2, The Steppes).
 //   0  speak with Míriel, a straggler fallen behind the host
@@ -254,6 +255,7 @@ export default class StragglersQuest {
           'Míriel and her gathered stores rejoin the host safely. The march west continues — grass gives way, ahead, to darker trees.',
           'The Great Forest waits beyond the plain.',
         ],
+        rewards: { xp: 25, gold: 40, items: ['Woven Steppe Cloak', 'Steppe-worn Boots'] },
         button: 'To the Road West',
         next: 'Journey',
       });
@@ -271,10 +273,11 @@ export default class StragglersQuest {
     if (!this.state.inventory) this.state.inventory = [];
     if (this.state.inventory.includes(itemId) || Object.values(this.state.equipment ?? {}).includes(itemId)) return;
     this.state.inventory.push(itemId);
-    this.toast(`Received: ${label}`, 2600);
+    const item = itemById(itemId);
+    this.scene.game.events.emit(EV.ITEM_GET, { name: label, bonus: item ? bonusLine(item) : '' });
     if (!this.state.quest.flags.seenInventoryTip) {
       this.state.quest.flags.seenInventoryTip = true;
-      this.scene.time.delayedCall(1400, () => this.toast('New: Inventory — open the menu (☰) to equip your gear.', 3200));
+      this.scene.time.delayedCall(1600, () => this.toast('New: Inventory — open the menu (☰) to equip your gear.', 3200));
     }
   }
 

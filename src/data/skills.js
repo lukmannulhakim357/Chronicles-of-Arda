@@ -113,14 +113,19 @@ export const SKILL_TREES = {
       'Self-invuln (8s) + party ATK/DEF/Crit/ATK-Rate buff (12s, no range limit) + light-infused weapons (bonus Magic-damage tick ~15% of own ATK per hit) + calls 4 Guardsmen (2 Swordsmen + 2 Archers, race-matched gear, basic-attack only, stats = 25% of the Captain\'s own, 12s) who count as temporary party members for the buff/infusion duration.',
       { kind: 'buff', tags: ['threat'] }),
   ],
+  // Passives come early here by design: Wild Bond leads the tree since it
+  // governs summon duration/count the moment the first creature is called,
+  // and Kinship Bond lands right after Call Spirit (the healer summon it
+  // synergizes with) — unlike other classes, a Summoner's passives ARE the
+  // summoning framework, not late-tree stat garnish.
   summoner: [
+    p('wild_bond', 'Wild Bond', 'Sets summon duration (20s baseline) and max simultaneous summons (starts at 1, raises with rank, capping at 2 by mid-game).'),
     a('call_bird', 'Call Bird', null, null, 10, 'summon', 'Summons a Bird.', { kind: 'summon' }),
     a('call_spirit', 'Call Spirit', null, null, 12, 'summon', 'Summons a Spirit.', { kind: 'summon' }),
+    p('kinship_bond', 'Kinship Bond', 'Always-on while ≥1 summon is active: Summoner gains +5% All DEF & +5% Evasion; all active summons heal 3% of their own Max HP every 3s.'),
     a('call_great_eagle', 'Call Great Eagle', null, null, 16, 'summon', 'Summons a Great Eagle.', { kind: 'summon' }),
     a('call_ent', 'Call Ent', null, null, 20, 'summon', 'Summons an Ent.', { kind: 'summon' }),
     a('call_beorning', 'Call Beorning', null, null, 20, 'summon', 'Summons a Beorning (bear) — unlock requires a mid-Third Age+ campaign.', { kind: 'summon' }),
-    p('kinship_bond', 'Kinship Bond', 'Always-on while ≥1 summon is active: Summoner gains +5% All DEF & +5% Evasion; all active summons heal 3% of their own Max HP every 3s.'),
-    p('wild_bond', 'Wild Bond', 'Sets summon duration (20s baseline) and max simultaneous summons (starts at 1, raises with rank, capping at 2 by mid-game).'),
     cap('call_of_the_wild', 'Call of the Wild', null, null, 90, 'summon', 'Summons all 5 creature types at once (whichever are unlocked/era-available) for 8s, then they vanish.', { kind: 'summon' }),
   ],
 };

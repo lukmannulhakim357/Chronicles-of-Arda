@@ -219,11 +219,14 @@ export default class VanishingQuest {
     this.shadow = this.scene.physics.add.sprite(p.x - 40, p.y + 55, 'npc_shadow', 130);
     this.shadow.setDepth(9999).setAlpha(0.9).setTint(0x4a3a6a);
     this.shadow.hp = 5;
+    this.shadow.maxHp = 5;
     this.shadow.lunging = false;
     this.shadow.hitThisLunge = false;
     this.shadow.body.setSize(28, 34);
     this.shadow.play('npc_shadow-walk-down');
     this.scene.tweens.add({ targets: this.shadow, alpha: 0.65, duration: 700, yoyo: true, repeat: -1 });
+    this.shadowHpBg = this.scene.add.rectangle(this.shadow.x, this.shadow.y - 38, 40, 5, 0x000000, 0.6).setDepth(10000);
+    this.shadowHpFill = this.scene.add.rectangle(this.shadow.x - 19, this.shadow.y - 38, 38, 3, 0xa03030, 1).setOrigin(0, 0.5).setDepth(10001);
 
     this.toast('Something crawls out of the dark!', 2600);
 
@@ -265,6 +268,11 @@ export default class VanishingQuest {
   // called from WorldScene.update during stage 2
   encounterUpdate() {
     if (!this.shadow?.active) return;
+    if (this.shadowHpBg?.active) {
+      this.shadowHpBg.setPosition(this.shadow.x, this.shadow.y - 38);
+      this.shadowHpFill.setPosition(this.shadow.x - 19, this.shadow.y - 38);
+      this.shadowHpFill.width = 38 * Math.max(0, this.shadow.hp / this.shadow.maxHp);
+    }
     const player = this.scene.player;
     const d = Phaser.Math.Distance.Between(player.x, player.y, this.shadow.x, this.shadow.y);
     if (this.shadow.lunging && !this.shadow.hitThisLunge && d < 30) {
@@ -279,11 +287,24 @@ export default class VanishingQuest {
 
   // called when the player attacks (from WorldScene)
   onPlayerAttack() {
+    this.hitShadow(1);
+  }
+
+  // action-bar skills land as a heavier strike on this scripted encounter
+  onPlayerSkill() {
+    this.hitShadow(2);
+  }
+
+  hitShadow(amount) {
     if (!this.shadow?.active) return;
     const player = this.scene.player;
     const d = Phaser.Math.Distance.Between(player.x, player.y, this.shadow.x, this.shadow.y);
-    if (d > 64) return;
-    this.shadow.hp -= 1;
+    if (d > 80) {
+      this.scene.showFloatText(player.x, player.y, 'Too far!', '#9aa4bc');
+      return;
+    }
+    this.shadow.hp -= amount;
+    this.scene.showFloatText(this.shadow.x, this.shadow.y, `-${amount}`, '#f0d8d8');
     this.shadow.setTintFill(0xccccff);
     this.scene.time.delayedCall(90, () => this.shadow?.setTint(0x4a3a6a));
     const kx = this.shadow.x + (this.shadow.x - player.x) * 0.4;
@@ -296,6 +317,8 @@ export default class VanishingQuest {
     if (this.encounterOver) return;
     this.encounterOver = true;
     this.lungeTimer?.remove();
+    this.shadowHpBg?.destroy();
+    this.shadowHpFill?.destroy();
     this.scene.game.events.emit(EV.ATTACK_SET, { visible: false });
 
     const horn = rescued
@@ -500,6 +523,7 @@ export default class VanishingQuest {
               'The Quest of “The Vanishing” is ended. Náro is home, and the name Eldar now belongs to your people.',
               'Westward lies a march of years: steppes and forests, mountains and wide wild lands, until the Sea itself — and beyond it, the Light.',
             ],
+            rewards: { gold: 40 },
             button: 'To the Road West',
             next: 'Journey',
           });

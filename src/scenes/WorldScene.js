@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { EV } from '../config.js';
+import { EV, FONTS } from '../config.js';
 import { getState, setState, effectiveStats } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { kindredById } from '../data/kindreds.js';
@@ -8,6 +8,7 @@ import { WAYPOINTS } from '../data/waypoints.js';
 import { ZONES } from '../world/zones.js';
 import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
+import { skillDef, rankOf } from '../data/skills.js';
 
 const SPEED = 150;
 
@@ -78,6 +79,7 @@ export default class WorldScene extends Phaser.Scene {
     const g = this.game.events;
     g.on(EV.ACTION_PRESSED, this.onAction, this);
     g.on(EV.ATTACK_PRESSED, this.onAttack, this);
+    g.on(EV.SKILL_PRESSED, this.onSkillPressed, this);
     g.on(EV.MENU_SAVE, this.onMenuSave, this);
     g.on(EV.MENU_QUIT, this.onMenuQuit, this);
     g.on(EV.MENU_CHARACTER, this.onOpenCharacter, this);
@@ -85,11 +87,13 @@ export default class WorldScene extends Phaser.Scene {
     this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
       g.off(EV.ACTION_PRESSED, this.onAction, this);
       g.off(EV.ATTACK_PRESSED, this.onAttack, this);
+      g.off(EV.SKILL_PRESSED, this.onSkillPressed, this);
       g.off(EV.MENU_SAVE, this.onMenuSave, this);
       g.off(EV.MENU_QUIT, this.onMenuQuit, this);
       g.off(EV.MENU_CHARACTER, this.onOpenCharacter, this);
       this.scale.off('resize', this.onResize, this);
     });
+    this.skillCooldowns = {}; // skillId -> ready-at timestamp (scene clock)
 
     this.currentInteractable = null;
 
@@ -100,6 +104,7 @@ export default class WorldScene extends Phaser.Scene {
       this.emitMp();
       this.emitXp();
       this.emitGold();
+      this.emitSkillbar();
       this.quest.begin();
     });
   }
@@ -196,6 +201,7 @@ export default class WorldScene extends Phaser.Scene {
     this.emitMp();
     this.emitXp();
     this.emitGold();
+    this.emitSkillbar();
   }
 
   // ---------- hp ----------
@@ -231,6 +237,7 @@ export default class WorldScene extends Phaser.Scene {
   damagePlayer(amount) {
     this.state.hp = Math.max(1, this.state.hp - amount);
     this.emitHp();
+    this.showFloatText(this.player.x, this.player.y, `-${amount}`, '#e88a8a');
     this.cameras.main.shake(120, 0.004);
     this.player.setTintFill(0xffffff);
     this.time.delayedCall(90, () => this.player.clearTint());
@@ -264,10 +271,69 @@ export default class WorldScene extends Phaser.Scene {
     this.attackCooldown = this.time.now + 550;
     this.attacking = true;
     this.player.play(`${this.sheet}-slash-${this.facing}`, true);
+    // small forward step so a standing attack still reads as a strike,
+    // not a frozen sprite
+    const step = { up: [0, -8], down: [0, 8], left: [-8, 0], right: [8, 0] }[this.facing];
+    this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 110, yoyo: true, ease: 'Sine.easeOut' });
     this.time.delayedCall(160, () => this.quest.onPlayerAttack?.());
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.attacking = false;
     });
+  }
+
+  // ---------- skills (action-bar slots in the HUD) ----------
+
+  emitSkillbar() {
+    const bar = this.state.actionBar ?? [null, null, null, null];
+    const slots = bar.map((id) => {
+      if (!id) return null;
+      const def = skillDef(this.state.classId, id);
+      if (!def) return null;
+      const ready = (this.skillCooldowns?.[id] ?? 0) <= this.time.now && (this.state.mp ?? 0) >= (def.mp ?? 0);
+      return { name: def.name, ready };
+    });
+    this.game.events.emit(EV.SKILLBAR, { slots });
+  }
+
+  onSkillPressed({ slot }) {
+    if (this.game.uiBlocking || this.attacking) return;
+    const id = this.state.actionBar?.[slot];
+    if (!id) return;
+    const def = skillDef(this.state.classId, id);
+    if (!def) return;
+    if ((this.skillCooldowns[id] ?? 0) > this.time.now) {
+      this.game.events.emit(EV.TOAST, { text: `${def.name} is still recovering.`, duration: 1200 });
+      return;
+    }
+    if ((this.state.mp ?? 0) < (def.mp ?? 0)) {
+      this.game.events.emit(EV.TOAST, { text: 'Not enough MP.', duration: 1200 });
+      return;
+    }
+    this.state.mp -= def.mp ?? 0;
+    this.skillCooldowns[id] = this.time.now + (def.cd ?? 0) * 1000;
+    this.emitMp();
+    this.attacking = true;
+    this.player.play(`${this.sheet}-slash-${this.facing}`, true);
+    const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
+    this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
+    const flash = this.add.image(this.player.x, this.player.y - 20, 'glow').setScale(0.7).setDepth(this.player.y + 1).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: flash, scale: 1.1, alpha: 0, duration: 380, onComplete: () => flash.destroy() });
+    const rank = rankOf(this.state, id);
+    this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));
+    this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      this.attacking = false;
+    });
+    this.emitSkillbar();
+    this.time.delayedCall((def.cd ?? 0) * 1000 + 50, () => this.emitSkillbar());
+  }
+
+  // floating combat number above a world position (damage, heals, misses)
+  showFloatText(x, y, text, color = '#f0e8d8') {
+    const t = this.add
+      .text(x, y - 28, text, { fontFamily: FONTS.body, fontSize: '14px', color, stroke: '#05060f', strokeThickness: 3 })
+      .setOrigin(0.5)
+      .setDepth(60000);
+    this.tweens.add({ targets: t, y: y - 54, alpha: 0, duration: 850, ease: 'Sine.easeOut', onComplete: () => t.destroy() });
   }
 
   update() {

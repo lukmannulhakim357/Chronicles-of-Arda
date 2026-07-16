@@ -32,7 +32,7 @@ export default class StoryScene extends Phaser.Scene {
     const cx = width / 2;
     const d = this.data_;
     this.recordCard(d);
-    const BOTTOM_RESERVE = 90; // button + margin
+    const BOTTOM_RESERVE = d.rewards ? 150 : 90; // button (+ rewards strip) + margin
     const GAP = 14;
 
     let y = Math.max(14, height * 0.08);
@@ -109,6 +109,26 @@ export default class StoryScene extends Phaser.Scene {
     }
 
     bodyText.setPosition(cx, y).setVisible(true);
+
+    // rewards strip — completion cards list what was just earned, so the
+    // payout never lands silently before the next leg starts
+    if (d.rewards) {
+      const parts = [];
+      if (d.rewards.xp) parts.push(`+${d.rewards.xp} EXP`);
+      if (d.rewards.gold) parts.push(`🪙 ${d.rewards.gold}`);
+      if (d.rewards.items?.length) parts.push(...d.rewards.items.map((n) => `✦ ${n}`));
+      if (parts.length) {
+        const ry = height - 96;
+        const label = this.add
+          .text(cx, ry - 14, 'Rewards', { fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim, fontStyle: 'italic' })
+          .setOrigin(0.5, 1);
+        const line = this.add
+          .text(cx, ry, parts.join('    '), { fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968' })
+          .setOrigin(0.5, 0);
+        const w = Math.max(line.width, label.width) + 36;
+        this.add.rectangle(cx, ry - 4, w, 46, 0x101830, 0.85).setStrokeStyle(1, COLORS.panelLine).setDepth(-1);
+      }
+    }
 
     makeTextButton(this, cx, height - 46, Math.min(260, width - 80), 52, d.button ?? 'Continue', () => {
       this.scene.start(d.next, d.nextData ?? {});

@@ -30,11 +30,11 @@ import {
 //   Craft      — stub: crafting professions are a future system
 
 const TABS = [
-  { key: 'gear', label: 'Gear' },
-  { key: 'skills', label: 'Skills' },
-  { key: 'titles', label: 'Titles' },
-  { key: 'collection', label: 'Tales' },
-  { key: 'craft', label: 'Craft' },
+  { key: 'gear', label: '⚔ Gear' },
+  { key: 'skills', label: '✦ Skills' },
+  { key: 'titles', label: '👑 Titles' },
+  { key: 'collection', label: '📜 Tales' },
+  { key: 'craft', label: '⚒ Craft' },
 ];
 
 const SLOT_DEFS = [

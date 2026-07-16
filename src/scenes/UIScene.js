@@ -43,6 +43,8 @@ export default class UIScene extends Phaser.Scene {
       g.off(EV.MP, this.onMp, this);
       g.off(EV.XP, this.onXp, this);
       g.off(EV.GOLD, this.onGold, this);
+      g.off(EV.SKILLBAR, this.onSkillbar, this);
+      g.off(EV.ITEM_GET, this.onItemGet, this);
     });
   }
 
@@ -56,8 +58,17 @@ export default class UIScene extends Phaser.Scene {
     // action + attack buttons
     this.actionBtn = this.makeRoundButton('', 0xd9b968, () => this.game.events.emit(EV.ACTION_PRESSED));
     this.actionBtn.cont.setVisible(false);
-    this.attackBtn = this.makeRoundButton('Attack', 0xa03030, () => this.game.events.emit(EV.ATTACK_PRESSED));
+    this.attackBtn = this.makeRoundButton('⚔\nAttack', 0xa03030, () => this.game.events.emit(EV.ATTACK_PRESSED));
     this.attackBtn.cont.setVisible(false);
+
+    // 4 round skill slots (mobile skill wheel) — populated from the action
+    // bar; visible whenever the matching slot has a skill assigned
+    this.skillBtns = [];
+    for (let i = 0; i < 4; i++) {
+      const b = this.makeRoundButton('', 0x6a8fd9, () => this.game.events.emit(EV.SKILL_PRESSED, { slot: i }), 26);
+      b.cont.setVisible(false);
+      this.skillBtns.push(b);
+    }
 
     // quest tracker
     this.trackerTitle = this.add.text(12, 10, '', {
@@ -128,14 +139,18 @@ export default class UIScene extends Phaser.Scene {
     this.layout();
   }
 
-  makeRoundButton(label, ringColor, onTap) {
+  makeRoundButton(label, ringColor, onTap, radius = 38) {
     const cont = this.add.container(0, 0).setDepth(55);
-    const circle = this.add.circle(0, 0, 38, COLORS.panel, 0.85).setStrokeStyle(3, ringColor, 0.9);
+    const circle = this.add.circle(0, 0, radius, COLORS.panel, 0.85).setStrokeStyle(3, ringColor, 0.9);
     const txt = this.add.text(0, 0, label, {
-      fontFamily: FONTS.body, fontSize: '14px', color: COLORS.text, align: 'center', wordWrap: { width: 66 },
+      fontFamily: FONTS.body, fontSize: radius < 30 ? '10px' : '14px', color: COLORS.text, align: 'center', wordWrap: { width: radius * 1.7 },
     }).setOrigin(0.5);
     cont.add([circle, txt]);
-    circle.setInteractive(new Phaser.Geom.Circle(0, 0, 44), Phaser.Geom.Circle.Contains);
+    cont.setSize(radius * 2, radius * 2);
+    // hit-area coords are local with (0,0) at the object's TOP-LEFT, so the
+    // circle must be centered at (radius, radius) — centering it at (0,0)
+    // leaves only a corner sliver tappable (the old, very stiff-feeling bug)
+    circle.setInteractive(new Phaser.Geom.Circle(radius, radius, radius + 6), Phaser.Geom.Circle.Contains);
     circle.on('pointerdown', () => circle.setFillStyle(0x1c2a50, 1));
     circle.on('pointerup', () => { circle.setFillStyle(COLORS.panel, 0.85); onTap(); });
     circle.on('pointerout', () => circle.setFillStyle(COLORS.panel, 0.85));
@@ -148,6 +163,14 @@ export default class UIScene extends Phaser.Scene {
     this.goldText.setPosition(width - this.goldText.width - 10, this.menuBtn.y + this.menuBtn.height + 6);
     this.actionBtn.cont.setPosition(width - 62, height - 66);
     this.attackBtn.cont.setPosition(width - 62, height - 160);
+    // skill wheel arcs up-left from the attack button
+    const arc = [
+      { x: width - 150, y: height - 176 },
+      { x: width - 196, y: height - 128 },
+      { x: width - 216, y: height - 64 },
+      { x: width - 150, y: height - 40 },
+    ];
+    this.skillBtns?.forEach((b, i) => b.cont.setPosition(arc[i].x, arc[i].y));
     if (this.dialogue) this.layoutSheet();
   }
 
@@ -164,6 +187,42 @@ export default class UIScene extends Phaser.Scene {
     g.on(EV.MP, this.onMp, this);
     g.on(EV.XP, this.onXp, this);
     g.on(EV.GOLD, this.onGold, this);
+    g.on(EV.SKILLBAR, this.onSkillbar, this);
+    g.on(EV.ITEM_GET, this.onItemGet, this);
+  }
+
+  onSkillbar({ slots }) {
+    this.skillBtns.forEach((b, i) => {
+      const s = slots[i];
+      if (!s) {
+        b.cont.setVisible(false);
+        return;
+      }
+      b.txt.setText(s.name);
+      b.circle.setStrokeStyle(3, s.ready ? 0x6a8fd9 : 0x3a4a5a, 0.9);
+      b.txt.setColor(s.ready ? '#e8e4d8' : '#5a6a88');
+      b.cont.setVisible(true);
+    });
+  }
+
+  // Prominent gold-bordered banner for received items — louder than a
+  // toast, so rewards never slip into the pack unnoticed.
+  onItemGet({ name, bonus }) {
+    const { width, height } = this.scale;
+    const w = Math.min(360, width - 60);
+    const cont = this.add.container(width / 2, height * 0.32).setDepth(92).setAlpha(0);
+    const bg = this.add.rectangle(0, 0, w, 64, 0x101830, 0.96).setStrokeStyle(2, 0xd9b968);
+    const t1 = this.add.text(0, -14, `✦ Item diperoleh: ${name}`, {
+      fontFamily: FONTS.body, fontSize: '14px', color: '#d9b968',
+    }).setOrigin(0.5);
+    const t2 = this.add.text(0, 10, bonus ?? '', {
+      fontFamily: FONTS.body, fontSize: '12px', color: COLORS.text,
+    }).setOrigin(0.5);
+    cont.add([bg, t1, t2]);
+    this.tweens.add({ targets: cont, alpha: 1, y: cont.y + 8, duration: 250 });
+    this.time.delayedCall(2600, () =>
+      this.tweens.add({ targets: cont, alpha: 0, duration: 350, onComplete: () => cont.destroy() })
+    );
   }
 
   onTracker(data) {
@@ -320,25 +379,25 @@ export default class UIScene extends Phaser.Scene {
       items.push(makeTextButton(this, width / 2, height / 2 - 118 + i * 52, bw, 48, label, cb).setDepth(96));
     const st = this.registry.get('state');
     const pts = (st?.statPoints ?? 0) + (st?.skillPoints ?? 0);
-    mk(0, 'Resume', () => this.closePause());
-    mk(1, pts > 0 ? `Character (${pts})` : 'Character', () => {
+    mk(0, '▶ Resume', () => this.closePause());
+    mk(1, pts > 0 ? `⚔ Character (${pts})` : '⚔ Character', () => {
       this.closePause();
       this.game.events.emit(EV.MENU_CHARACTER);
     });
-    mk(2, 'Save', () => {
+    mk(2, '💾 Save', () => {
       this.game.events.emit(EV.MENU_SAVE);
       this.closePause();
     });
-    mk(3, 'The Road West', () => {
+    mk(3, '🗺 The Road West', () => {
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'Journey' });
     });
-    mk(4, 'Switch Character', () => {
+    mk(4, '👥 Switch Character', () => {
       this.game.events.emit(EV.MENU_SAVE);
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'CharacterSlot' });
     });
-    mk(5, 'Save & Quit to Homepage', () => {
+    mk(5, '🏠 Save & Quit to Homepage', () => {
       this.game.events.emit(EV.MENU_SAVE);
       this.closePause();
       this.game.events.emit(EV.MENU_QUIT, { to: 'Title' });

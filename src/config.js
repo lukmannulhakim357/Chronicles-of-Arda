@@ -37,6 +37,9 @@ export const EV = {
   ACTION_PRESSED: 'ui:action-pressed',
   ATTACK_SET: 'ui:attack-set', // { visible:boolean }
   ATTACK_PRESSED: 'ui:attack-pressed',
+  SKILL_PRESSED: 'ui:skill-pressed', // { slot } — action-bar slot tapped
+  SKILLBAR: 'ui:skillbar', // { slots: [{ name, ready }|null x4] } — refresh HUD skill buttons
+  ITEM_GET: 'ui:item-get', // { name, bonus } — prominent item-received banner
   HP: 'ui:hp', // { hp, maxHp }
   MP: 'ui:mp', // { mp, maxMp }
   XP: 'ui:xp', // { level, xp, xpToNext }
