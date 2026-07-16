@@ -300,6 +300,11 @@ export default class VanishingQuest {
     this.hitShadow(2);
   }
 
+  // a summoned creature's dive counts as one hit here
+  onSummonHit() {
+    this.hitShadow(1);
+  }
+
   hitShadow(amount) {
     if (!this.shadow?.active) return;
     const player = this.scene.player;

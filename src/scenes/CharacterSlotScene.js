@@ -75,10 +75,12 @@ export default class CharacterSlotScene extends Phaser.Scene {
     if (!character) {
       const card = this.add.rectangle(cx, y, w, h, 0x0a0e1e, 0.7).setStrokeStyle(2, COLORS.panelLine, 0.6);
       card.setInteractive({ useHandCursor: true });
-      this.add.text(cx, y - 6, '+  Create Character', { fontFamily: FONTS.body, fontSize: '16px', color: '#9aa4bc' }).setOrigin(0.5);
+      this.add.text(cx, y, '+  Create Character', { fontFamily: FONTS.body, fontSize: h < 64 ? '14px' : '16px', color: '#9aa4bc' }).setOrigin(0.5);
+      // slot label lives in the corner so it can't collide with the CTA on
+      // short screens (phones give each card far less height than tablets)
       this.add
-        .text(cx, y + h / 2 - 14, `Slot ${index + 1}`, { fontFamily: FONTS.body, fontSize: '11px', color: '#5a6a88' })
-        .setOrigin(0.5, 1);
+        .text(cx - w / 2 + 8, y - h / 2 + 5, `Slot ${index + 1}`, { fontFamily: FONTS.body, fontSize: '10px', color: '#5a6a88' })
+        .setOrigin(0, 0);
       card.on('pointerup', () => {
         this.registry.set('slotIndex', index);
         this.scene.start('Creation');

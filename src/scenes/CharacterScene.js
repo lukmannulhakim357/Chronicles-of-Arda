@@ -216,7 +216,9 @@ export default class CharacterScene extends Phaser.Scene {
   }
 
   renderPaperdoll(cx, w, top) {
-    const slot = Math.min(46, w / 3 - 8);
+    // short phone screens get a tighter paperdoll so the stat block and
+    // derived list below still fit above the Close button
+    const slot = Math.min(46, w / 3 - 8, this.scale.height * 0.105);
     const gap = 6;
     const row1Y = top + slot / 2 + 2;
     this.buildSlotBox('head', cx, row1Y, slot, slot);
@@ -275,12 +277,14 @@ export default class CharacterScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
     y += 16;
 
-    const rowH = 28;
+    const compact = this.scale.height < 430;
+    const rowH = compact ? 22 : 28;
+    const gap = compact ? 3 : 4;
     Object.keys(STAT_INFO).forEach((stat, i) => {
-      const ry = y + i * (rowH + 4) + rowH / 2;
+      const ry = y + i * (rowH + gap) + rowH / 2;
       this.buildStatRow(stat, cx, ry, w, rowH);
     });
-    return y + Object.keys(STAT_INFO).length * (rowH + 4) + 6;
+    return y + Object.keys(STAT_INFO).length * (rowH + gap) + (compact ? 3 : 6);
   }
 
   buildStatRow(stat, cx, y, w, h) {
@@ -328,11 +332,12 @@ export default class CharacterScene extends Phaser.Scene {
     const base = derivedStats(effectiveStats(this.state));
     const preview = this.spentPending() > 0 ? derivedStats(this.addPending(effectiveStats(this.state))) : base;
     const colW = w / 2;
+    const lineH = this.scale.height < 430 ? 12 : 15;
     DERIVED_ROWS.forEach(([key, label], i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = cx - w / 2 + col * colW + colW / 2;
-      const y = top + row * 15;
+      const y = top + row * lineH;
       const changed = preview[key] !== base[key];
       const text = changed ? `${label} ${base[key]}→${preview[key]}` : `${label} ${base[key]}`;
       this.add

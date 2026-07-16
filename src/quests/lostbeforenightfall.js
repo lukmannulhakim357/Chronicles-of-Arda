@@ -332,10 +332,16 @@ export default class LostBeforeNightfallQuest {
     this.strikeWolf({ skillPct: def.damagePct ?? 1.4, isMagic: !!def.isMagic, critMult: def.critMult ?? 2, rank });
   }
 
-  strikeWolf({ skillPct, isMagic, critMult, rank = 1 }) {
+  // summon dives resolve as light Magic hits (summon damage is always
+  // Magic-typed per the skill doc §4.8.0 — never misses, modest per-hit)
+  onSummonHit() {
+    this.strikeWolf({ skillPct: 0.55, isMagic: true, critMult: 2, skipRange: true });
+  }
+
+  strikeWolf({ skillPct, isMagic, critMult, rank = 1, skipRange = false }) {
     if (this.encounterOver || !this.wolf?.active || !isAlive(this.wolfCombatant)) return;
     const player = this.scene.player;
-    const d = Phaser.Math.Distance.Between(player.x, player.y, this.wolf.x, this.wolf.y);
+    const d = skipRange ? 0 : Phaser.Math.Distance.Between(player.x, player.y, this.wolf.x, this.wolf.y);
     if (d > 80) {
       this.scene.showFloatText(player.x, player.y, 'Too far!', '#9aa4bc');
       return;
