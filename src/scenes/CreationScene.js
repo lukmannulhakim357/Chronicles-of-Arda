@@ -170,6 +170,7 @@ export default class CreationScene extends Phaser.Scene {
       lastWhere: 'The shores of Cuiviénen',
     });
     this.scene.start('Story', {
+      id: 'awakening-at-cuivienen',
       title: 'Cuiviénen, the Waters of Awakening',
       art: 'art-cuivienen-awakening',
       paragraphs: [

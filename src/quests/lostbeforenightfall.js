@@ -3,7 +3,7 @@ import { EV } from '../config.js';
 import { tilesToPx, POINTS } from '../world/greatforest.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { grantXp, grantGold } from '../data/leveling.js';
-import { WEAPON_BY_CLASS } from '../data/items.js';
+import { WEAPON_BY_CLASS, itemById, bonusLine } from '../data/items.js';
 import { effectiveStats } from '../systems/GameState.js';
 import { derivedStats } from '../data/classes.js';
 import { createCombatant, isAlive, liveStats, damage as dealDamage } from '../combat/combatant.js';
@@ -234,6 +234,8 @@ export default class LostBeforeNightfallQuest {
     if (!this.state.inventory) this.state.inventory = [];
     if (this.state.inventory.includes(itemId) || Object.values(this.state.equipment ?? {}).includes(itemId)) return;
     this.state.inventory.push(itemId);
+    const item = itemById(itemId);
+    if (item) this.scene.game.events.emit(EV.ITEM_GET, { name: item.name, bonus: bonusLine(item) });
   }
 
   // ---------- stage 3: the wolf — first real combat, via src/combat/ ----------
@@ -258,6 +260,8 @@ export default class LostBeforeNightfallQuest {
     this.wolf = this.scene.physics.add.sprite(p.x, p.y, 'npc_shadow', 130);
     this.wolf.setDepth(9999).setTint(0x6b4a2a).setScale(1.05);
     this.wolf.play('npc_shadow-walk-left');
+    this.wolfHpBg = this.scene.add.rectangle(p.x, p.y - 40, 42, 5, 0x000000, 0.6).setDepth(10000);
+    this.wolfHpFill = this.scene.add.rectangle(p.x - 20, p.y - 40, 40, 3, 0xa03030, 1).setOrigin(0, 0.5).setDepth(10001);
     this.toast('A wolf, ribs showing, slips out of the dark between the trees.', 2800);
 
     this.lungeTimer = this.scene.time.addEvent({ delay: 1800, loop: true, callback: () => this.wolfLunge() });
@@ -315,22 +319,36 @@ export default class LostBeforeNightfallQuest {
 
   // called from WorldScene when the player taps Attack (mirrors onPlayerAttack elsewhere)
   onPlayerAttack() {
+    this.strikeWolf({ skillPct: 1, isMagic: false, critMult: 2 });
+  }
+
+  // action-bar skills hit through the same live-combat path, harder
+  onPlayerSkill(def, rank = 1) {
+    this.strikeWolf({ skillPct: def.damagePct ?? 1.4, isMagic: !!def.isMagic, critMult: def.critMult ?? 2, rank });
+  }
+
+  strikeWolf({ skillPct, isMagic, critMult, rank = 1 }) {
     if (this.encounterOver || !this.wolf?.active || !isAlive(this.wolfCombatant)) return;
     const player = this.scene.player;
     const d = Phaser.Math.Distance.Between(player.x, player.y, this.wolf.x, this.wolf.y);
-    if (d > 64) return;
+    if (d > 80) {
+      this.scene.showFloatText(player.x, player.y, 'Too far!', '#9aa4bc');
+      return;
+    }
     const outcome = computeDamage({
       attacker: liveStats(this.playerCombatant),
       defender: liveStats(this.wolfCombatant),
-      isMagic: false,
-      skillPct: 1,
-      rank: 1,
+      isMagic,
+      skillPct,
+      rank,
+      critMult,
     });
     if (!outcome.hit) {
-      this.toast('Miss!', 900);
+      this.scene.showFloatText(this.wolf.x, this.wolf.y, 'Miss!', '#9aa4bc');
       return;
     }
     dealDamage(this.wolfCombatant, outcome.damage);
+    this.scene.showFloatText(this.wolf.x, this.wolf.y, `-${outcome.damage}${outcome.crit ? '!' : ''}`, outcome.crit ? '#f2c14e' : '#f0d8d8');
     this.wolf.setTintFill(0xffffff);
     this.scene.time.delayedCall(90, () => this.wolf?.setTint(0x6b4a2a));
     const kx = this.wolf.x + (this.wolf.x - player.x) * 0.4;
@@ -340,14 +358,20 @@ export default class LostBeforeNightfallQuest {
   }
 
   encounterUpdate() {
-    // combat is timer/attack-driven (wolfAttack + onPlayerAttack); nothing
-    // needs to run every frame beyond what WorldScene already does.
+    // keep the wolf's HP bar tracking its sprite
+    if (this.wolf?.active && this.wolfHpBg?.active) {
+      this.wolfHpBg.setPosition(this.wolf.x, this.wolf.y - 40);
+      this.wolfHpFill.setPosition(this.wolf.x - 20, this.wolf.y - 40);
+      this.wolfHpFill.width = 40 * Math.max(0, this.wolfCombatant.hp / this.wolfCombatant.maxHp);
+    }
   }
 
   endEncounter(rescued) {
     if (this.encounterOver) return;
     this.encounterOver = true;
     this.lungeTimer?.remove();
+    this.wolfHpBg?.destroy();
+    this.wolfHpFill?.destroy();
     this.scene.game.events.emit(EV.ATTACK_SET, { visible: false });
 
     this.toast(
@@ -442,6 +466,7 @@ export default class LostBeforeNightfallQuest {
               'Isilmë and Ancalimë are safe, and the wolf that stalked the dark has gone to ground. You carry a weapon now, and the memory of the first real fight of the march.',
               'The Vales of Anduin lie ahead — and with them, a choice that isn\'t yours to make alone.',
             ],
+            rewards: { xp: 25, gold: 45 },
             button: 'To the Road West',
             next: 'Journey',
           });
