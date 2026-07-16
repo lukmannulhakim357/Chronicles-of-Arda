@@ -11,6 +11,7 @@ import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
 import { playWeaponSwing } from '../fx/weapons.js';
+import { WEAPON_BY_CLASS } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 
 const SPEED = 150;
@@ -328,8 +329,11 @@ export default class WorldScene extends Phaser.Scene {
     const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
     this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
 
-    // equipped weapon swings bigger on a skill than on a basic attack
-    if (this.state.equipment?.weapon) playWeaponSwing(this, this.player, this.state.equipment.weapon, this.facing, { skill: true });
+    // a skill always shows the class's weapon in motion — the equipped one
+    // if carried, else the class's signature weapon (a skill is never a
+    // bare-handed shrug, even before the first weapon drop)
+    const skillWeapon = this.state.equipment?.weapon ?? WEAPON_BY_CLASS[this.state.classId];
+    if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true });
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one

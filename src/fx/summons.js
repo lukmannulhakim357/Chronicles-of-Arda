@@ -21,39 +21,96 @@ export function ensureSummonTextures(scene) {
     g.generateTexture(key, w, h);
     g.destroy();
   };
-  mk('smn-bird', 12, 8, (g) => {
-    g.lineStyle(2, 0xf0f0ff, 1);
-    g.lineBetween(0, 6, 6, 1);
-    g.lineBetween(6, 1, 12, 6);
+  // Bird — a real bird silhouette: plump body, head with beak, tail, and
+  // proper curved wings in two flap frames (up / down) so it flies alive
+  const drawBirdBody = (g) => {
+    g.fillStyle(0xf0f0f8, 1);
+    g.fillEllipse(8, 8, 9, 6); // body
+    g.fillCircle(12, 6, 3); // head
+    g.fillStyle(0xf2a44e, 1);
+    g.fillTriangle(14, 6, 17, 7, 14, 8); // beak
+    g.fillStyle(0xd8d8e4, 1);
+    g.fillTriangle(4, 8, 0, 5, 1, 10); // tail
+  };
+  mk('smn-bird-a', 18, 14, (g) => {
+    drawBirdBody(g);
+    g.fillStyle(0xe4e4f0, 1);
+    g.fillTriangle(7, 7, 3, 0, 11, 5); // wing raised
   });
-  mk('smn-eagle', 24, 14, (g) => {
-    g.lineStyle(3, 0xd9b968, 1);
-    g.lineBetween(0, 12, 12, 2);
-    g.lineBetween(12, 2, 24, 12);
-    g.fillStyle(0x8a6a3a, 1);
-    g.fillCircle(12, 6, 3);
+  mk('smn-bird-b', 18, 14, (g) => {
+    drawBirdBody(g);
+    g.fillStyle(0xe4e4f0, 1);
+    g.fillTriangle(7, 8, 3, 14, 11, 10); // wing swept down
   });
-  mk('smn-ent', 18, 30, (g) => {
+  // Great Eagle — broad fingered wings, golden head, fanned tail
+  const drawEagleBody = (g) => {
     g.fillStyle(0x6b4a2a, 1);
-    g.fillRect(7, 12, 4, 18);
-    g.fillRect(3, 18, 3, 10);
-    g.fillRect(12, 18, 3, 10);
-    g.fillStyle(0x4a8a4a, 1);
-    g.fillCircle(9, 9, 8);
+    g.fillEllipse(17, 11, 14, 8);
+    g.fillStyle(0xe8d8a0, 1);
+    g.fillCircle(24, 8, 4); // pale head
+    g.fillStyle(0xf2a44e, 1);
+    g.fillTriangle(27, 8, 31, 9, 27, 11); // hooked beak
+    g.fillStyle(0x8a6a3a, 1);
+    g.fillTriangle(10, 11, 3, 8, 3, 15); // tail fan
+  };
+  mk('smn-eagle-a', 34, 22, (g) => {
+    drawEagleBody(g);
+    g.fillStyle(0x7a5a34, 1);
+    g.fillTriangle(15, 9, 2, 0, 20, 6); // left wing up
+    g.fillTriangle(19, 9, 32, 0, 24, 6); // right wing up
+    g.lineStyle(1, 0x5a4224, 1);
+    g.lineBetween(4, 2, 9, 6);
+    g.lineBetween(30, 2, 25, 6);
   });
-  mk('smn-bear', 24, 16, (g) => {
+  mk('smn-eagle-b', 34, 22, (g) => {
+    drawEagleBody(g);
+    g.fillStyle(0x7a5a34, 1);
+    g.fillTriangle(15, 12, 2, 21, 20, 15); // left wing down
+    g.fillTriangle(19, 12, 32, 21, 24, 15); // right wing down
+    g.lineStyle(1, 0x5a4224, 1);
+    g.lineBetween(4, 19, 9, 15);
+    g.lineBetween(30, 19, 25, 15);
+  });
+  // Ent — a walking tree: gnarled trunk legs, branch arms, layered canopy
+  mk('smn-ent', 26, 36, (g) => {
+    g.fillStyle(0x5a4224, 1);
+    g.fillRect(10, 16, 6, 14); // trunk
+    g.fillRect(7, 26, 4, 10); // left leg
+    g.fillRect(15, 26, 4, 10); // right leg
+    g.lineStyle(3, 0x5a4224, 1);
+    g.lineBetween(11, 20, 2, 14); // left arm branch
+    g.lineBetween(15, 20, 24, 13);
+    g.fillStyle(0x3a6a3a, 1);
+    g.fillCircle(13, 10, 9); // canopy
+    g.fillStyle(0x4a8a4a, 1);
+    g.fillCircle(9, 8, 5);
+    g.fillCircle(17, 8, 5);
+    g.fillStyle(0xf2d06b, 1);
+    g.fillRect(11, 13, 2, 2); // eyes glinting under the leaves
+    g.fillRect(15, 13, 2, 2);
+  });
+  // Beorning — a proper bear: humped back, snout, ears, four legs
+  mk('smn-bear', 30, 20, (g) => {
+    g.fillStyle(0x6b4a2a, 1);
+    g.fillEllipse(13, 10, 20, 11); // body with hump
+    g.fillCircle(23, 8, 5); // head
     g.fillStyle(0x8a5a2a, 1);
-    g.fillEllipse(11, 10, 18, 11);
-    g.fillCircle(20, 7, 4);
-    g.fillRect(4, 13, 3, 3);
-    g.fillRect(14, 13, 3, 3);
+    g.fillEllipse(26, 10, 6, 4); // snout
+    g.fillStyle(0x6b4a2a, 1);
+    g.fillCircle(20, 4, 2); // ear
+    g.fillCircle(25, 4, 2);
+    g.fillRect(5, 14, 4, 6); // legs
+    g.fillRect(11, 15, 4, 5);
+    g.fillRect(17, 15, 4, 5);
+    g.fillStyle(0x1a0e06, 1);
+    g.fillCircle(28, 9, 1); // nose
   });
 }
 
 const FORM_DEF = {
-  bird: { tint: 0xf0f0ff, count: 5, texture: 'smn-bird', bob: 10, atkPct: 'flurry' },
+  bird: { tint: 0xffffff, count: 5, texture: 'smn-bird-a', flap: ['smn-bird-a', 'smn-bird-b'], bob: 10 },
   spirit: { tint: 0x8ae8e8, count: 1, texture: 'glow', scale: 0.35, bob: 6 },
-  eagle: { tint: 0xffffff, count: 1, texture: 'smn-eagle', bob: 14 },
+  eagle: { tint: 0xffffff, count: 1, texture: 'smn-eagle-a', flap: ['smn-eagle-a', 'smn-eagle-b'], bob: 14 },
   ent: { tint: 0xffffff, count: 1, texture: 'smn-ent', bob: 2 },
   bear: { tint: 0xffffff, count: 1, texture: 'smn-bear', bob: 3 },
 };
@@ -97,12 +154,27 @@ export function spawnSummon(scene, form, player, getEnemyPos, onHit, durationMs 
     callback: () => {
       for (const s of sprites) {
         if (!s.active) continue;
-        s.x += (player.x + s.followOff.x - s.x) * 0.25;
-        // y handled loosely so the bob tween isn't fought too hard
+        const targetX = player.x + s.followOff.x;
+        s.x += (targetX - s.x) * 0.25;
         s.x += Math.sin(scene.time.now / 300 + s.followOff.x) * 0.6;
+        s.setFlipX(targetX < s.x); // face the way it's drifting
       }
     },
   });
+
+  // wing-flap for the flyers: alternate between the two flap frames
+  let flapTimer = null;
+  if (def.flap) {
+    let frame = 0;
+    flapTimer = scene.time.addEvent({
+      delay: 160,
+      loop: true,
+      callback: () => {
+        frame = 1 - frame;
+        for (const s of sprites) if (s.active) s.setTexture(def.flap[frame]);
+      },
+    });
+  }
 
   const atkTimer = scene.time.addEvent({
     delay: 2600,
@@ -142,6 +214,7 @@ export function spawnSummon(scene, form, player, getEnemyPos, onHit, durationMs 
     destroy() {
       followTimer.remove();
       atkTimer.remove();
+      flapTimer?.remove();
       sprites.forEach((s) =>
         scene.tweens.add({ targets: s, alpha: 0, duration: 350, onComplete: () => s.destroy() })
       );

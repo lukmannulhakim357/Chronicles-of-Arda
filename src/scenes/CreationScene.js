@@ -7,6 +7,9 @@ import { newGameState, setState } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { getTree } from '../data/skills.js';
 import { playUltimate } from '../fx/skillfx.js';
+import { playWeaponSwing } from '../fx/weapons.js';
+import { WEAPON_BY_CLASS } from '../data/items.js';
+import { derivedStats } from '../data/classes.js';
 
 // classes whose capstone is party-support — their preview adds a companion
 // so the party-wide effect actually reads as party-wide
@@ -209,10 +212,16 @@ export default class CreationScene extends Phaser.Scene {
       allies.push({ x: ally.x, y: ally.y });
     }
 
-    // loop the ultimate until the player decides
+    // loop the ultimate until the player decides — the caster swings their
+    // class's own weapon and plays the strike animation, same as in-game
     let dead = false;
     const loop = () => {
       if (dead) return;
+      caster.play(`${kindred.sheet}-slash-down`, true);
+      playWeaponSwing(this, caster, WEAPON_BY_CLASS[klass.id], 'down', { skill: true });
+      caster.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+        if (!dead) caster.play(`${kindred.sheet}-idle-down`);
+      });
       const dur = playUltimate(this, klass.id, { x: caster.x, y: caster.y }, allies, { x: cx + 55, y: stageY + 20 });
       this.previewTimer = this.time.delayedCall(dur + 700, loop);
     };
@@ -223,13 +232,40 @@ export default class CreationScene extends Phaser.Scene {
       this.previewTimer?.remove();
       items.forEach((o) => o.destroy());
       btnBack.destroy();
+      btnTry.destroy();
       btnGo.destroy();
     };
-    const btnBack = makeTextButton(this, cx - 92, panelTop + panel.height - 30, 160, 42, '← Choose again', () => cleanup()).setDepth(302);
-    const btnGo = makeTextButton(this, cx + 92, panelTop + panel.height - 30, 160, 42, `Begin as ${klass.name}`, () => {
+    const by = panelTop + panel.height - 30;
+    const btnBack = makeTextButton(this, cx - 168, by, 150, 42, '← Back', () => cleanup()).setDepth(302);
+    const btnTry = makeTextButton(this, cx, by, 150, 42, '⚔ Try skills', () => {
+      cleanup();
+      this.startTraining(klass);
+    }).setDepth(302);
+    const btnGo = makeTextButton(this, cx + 168, by, 150, 42, `Begin as ${klass.name}`, () => {
       cleanup();
       this.confirm(klass);
     }, { stroke: 0xd9b968 }).setDepth(302);
+  }
+
+  // Throwaway trial run on the Training Grounds: every skill unlocked, the
+  // class weapon equipped, deep MP/potion pockets — and state.training set,
+  // so SaveSystem refuses to persist any of it.
+  startTraining(klass) {
+    const state = newGameState(this.kindredId, klass.id);
+    state.training = true;
+    state.zone = 'training';
+    state.quest = { id: 'training', stage: 0, flags: {} };
+    state.seenIntro = true;
+    state.level = 40;
+    for (const s of getTree(klass.id)) state.skills[s.id] = 1;
+    state.stats.MAG += 10; // MP headroom so magic kits can chain-cast
+    const d = derivedStats(state.stats);
+    state.hp = d.maxHp;
+    state.mp = d.maxMp;
+    state.equipment.weapon = WEAPON_BY_CLASS[klass.id] ?? null;
+    state.potions = { hp: 9, mp: 9 };
+    setState(this, state);
+    this.scene.start('World');
   }
 
   confirm(klass) {
