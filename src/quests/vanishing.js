@@ -290,26 +290,32 @@ export default class VanishingQuest {
     return this.shadow?.active ? { x: this.shadow.x, y: this.shadow.y } : null;
   }
 
+  // enemy list with HP, for auto-aim's lowest-HP targeting
+  getEnemies() {
+    return this.shadow?.active ? [{ x: this.shadow.x, y: this.shadow.y, hp: this.shadow.hp }] : [];
+  }
+
   // called when the player attacks (from WorldScene)
   onPlayerAttack() {
-    this.hitShadow(1);
+    this.hitShadow(1, false);
   }
 
   // action-bar skills land as a heavier strike on this scripted encounter
   onPlayerSkill() {
-    this.hitShadow(2);
+    this.hitShadow(2, true);
   }
 
   // a summoned creature's dive counts as one hit here
   onSummonHit() {
-    this.hitShadow(1);
+    this.hitShadow(1, false, true);
   }
 
-  hitShadow(amount) {
+  hitShadow(amount, isSkill = false, skipRange = false) {
     if (!this.shadow?.active) return;
     const player = this.scene.player;
-    const d = Phaser.Math.Distance.Between(player.x, player.y, this.shadow.x, this.shadow.y);
-    if (d > 80) {
+    const range = this.scene.getAttackRangePx?.(isSkill) ?? 84;
+    const d = skipRange ? 0 : Phaser.Math.Distance.Between(player.x, player.y, this.shadow.x, this.shadow.y);
+    if (d > range) {
       this.scene.showFloatText(player.x, player.y, 'Too far!', '#9aa4bc');
       return;
     }

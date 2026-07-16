@@ -84,8 +84,7 @@ const HAND = {
   up: { x: -10, y: -6, flip: true, dx: 0, dy: -1 },
 };
 
-function arrow(scene, x, y, dx, dy, delay = 0) {
-  const dist = 68;
+function arrow(scene, x, y, dx, dy, delay = 0, dist = 68) {
   const a = scene.add
     .rectangle(x, y, 14, 2, 0xe8dcc0, 1)
     .setDepth(59006)
@@ -97,7 +96,7 @@ function arrow(scene, x, y, dx, dy, delay = 0) {
     alpha: { from: 1, to: 0.4 },
     x: x + dx * dist,
     y: y + dy * dist,
-    duration: 170,
+    duration: 120 + dist * 0.7,
     ease: 'Sine.easeIn',
     onComplete: () => a.destroy(),
   });
@@ -117,7 +116,7 @@ function spawnWeapon(scene, player, shape, hand, skill) {
 // differently per family: melee arcs (skills double-swing), bows loose a
 // visible arrow (skills a fanned volley), magic foci raise with a flare
 // (skills add a spell ring at the tip).
-export function playWeaponSwing(scene, player, itemId, facing, { skill = false } = {}) {
+export function playWeaponSwing(scene, player, itemId, facing, { skill = false, targetPos = null } = {}) {
   const shape = weaponShapeOf(itemId);
   if (!shape) return;
   ensureWeaponTextures(scene);
@@ -126,6 +125,14 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false }
   const x = img.x;
   const y = img.y;
   const dir = hand.flip ? -1 : 1;
+
+  // with an auto-aimed target, projectiles fly straight at it from any
+  // angle — no need to stand in line with the enemy
+  let aim = { dx: hand.dx, dy: hand.dy, dist: 68 };
+  if (targetPos) {
+    const ang = Math.atan2(targetPos.y - y, targetPos.x - x);
+    aim = { dx: Math.cos(ang), dy: Math.sin(ang), dist: Phaser.Math.Distance.Between(x, y, targetPos.x, targetPos.y) };
+  }
 
   if (shape === 'sword' || shape === 'dagger' || shape === 'hammer') {
     img.rotation = dir * -1.3;
@@ -162,12 +169,12 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false }
       onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() }),
     });
     if (skill) {
-      // volley: three arrows fanned out
-      arrow(scene, x, y, hand.dx, hand.dy, 90);
-      arrow(scene, x + hand.dy * 8, y + hand.dx * 8, hand.dx * 0.92, hand.dy * 0.92 + hand.dx * 0.3, 170);
-      arrow(scene, x - hand.dy * 8, y - hand.dx * 8, hand.dx * 0.92, hand.dy * 0.92 - hand.dx * 0.3, 250);
+      // volley: three arrows fanned out around the aim line
+      arrow(scene, x, y, aim.dx, aim.dy, 90, aim.dist);
+      arrow(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 170, aim.dist);
+      arrow(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 250, aim.dist);
     } else {
-      arrow(scene, x, y, hand.dx, hand.dy, 90); // every shot looses an arrow
+      arrow(scene, x, y, aim.dx, aim.dy, 90, aim.dist); // every shot looses an arrow
     }
   } else {
     // staff / harp / talisman — raise it, let the focus answer

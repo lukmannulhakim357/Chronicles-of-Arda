@@ -62,23 +62,28 @@ export default class TrainingQuest {
     return this.dummy ? { x: this.dummy.x, y: this.dummy.y - 14 } : null;
   }
 
+  getEnemies() {
+    return this.dummy ? [{ x: this.dummy.x, y: this.dummy.y - 14, hp: 999 }] : [];
+  }
+
   onPlayerAttack() {
     this.hitDummy({ skillPct: 1, isMagic: false, critMult: 2 });
   }
 
   onPlayerSkill(def, rank = 1) {
-    this.hitDummy({ skillPct: def.damagePct ?? 1.4, isMagic: !!def.isMagic, critMult: def.critMult ?? 2, rank });
+    this.hitDummy({ skillPct: def.damagePct ?? 1.4, isMagic: !!def.isMagic, critMult: def.critMult ?? 2, rank, isSkill: true });
   }
 
   onSummonHit() {
     this.hitDummy({ skillPct: 0.55, isMagic: true, critMult: 2, skipRange: true });
   }
 
-  hitDummy({ skillPct, isMagic, critMult, rank = 1, skipRange = false }) {
+  hitDummy({ skillPct, isMagic, critMult, rank = 1, skipRange = false, isSkill = false }) {
     if (!this.dummy) return;
     const player = this.scene.player;
+    const range = this.scene.getAttackRangePx?.(isSkill) ?? 84;
     const d = skipRange ? 0 : Phaser.Math.Distance.Between(player.x, player.y, this.dummy.x, this.dummy.y);
-    if (d > 84) {
+    if (d > range) {
       this.scene.showFloatText(player.x, player.y, 'Too far!', '#9aa4bc');
       return;
     }

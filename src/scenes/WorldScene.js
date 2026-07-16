@@ -11,7 +11,7 @@ import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
 import { playWeaponSwing } from '../fx/weapons.js';
-import { WEAPON_BY_CLASS } from '../data/items.js';
+import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 
 const SPEED = 150;
@@ -269,14 +269,44 @@ export default class WorldScene extends Phaser.Scene {
     this.currentInteractable?.interact();
   }
 
+  // Attack reach follows the wielded weapon's range tier (bow longest,
+  // staff/talisman mid, melee short); bare hands fight at melee reach.
+  getAttackRangePx(forSkill = false) {
+    const wid = this.state.equipment?.weapon ?? (forSkill ? WEAPON_BY_CLASS[this.state.classId] : null);
+    return weaponRangePx(wid);
+  }
+
+  // Auto-aim: any enemy inside weapon range is a valid target from any
+  // angle — no need to line up. With several enemies, the lowest-HP one
+  // is picked first.
+  pickEnemyTarget(rangePx) {
+    const list = this.quest.getEnemies?.() ?? (this.quest.getEnemyPos?.() ? [this.quest.getEnemyPos()] : []);
+    const inRange = list.filter(
+      (e) => e && Phaser.Math.Distance.Between(this.player.x, this.player.y, e.x, e.y) <= rangePx
+    );
+    if (!inRange.length) return null;
+    inRange.sort((a, b) => (a.hp ?? Infinity) - (b.hp ?? Infinity));
+    return inRange[0];
+  }
+
+  faceToward(target) {
+    const dx = target.x - this.player.x;
+    const dy = target.y - this.player.y;
+    this.facing = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+  }
+
   onAttack() {
     if (this.game.uiBlocking || this.attacking) return;
     if (this.time.now < this.attackCooldown) return;
     this.attackCooldown = this.time.now + 550;
     this.attacking = true;
+    const target = this.pickEnemyTarget(this.getAttackRangePx(false));
+    if (target) this.faceToward(target); // snap toward the auto-aimed enemy
     this.player.play(`${this.sheet}-slash-${this.facing}`, true);
-    // equipped weapon appears in hand and swings with the attack
-    if (this.state.equipment?.weapon) playWeaponSwing(this, this.player, this.state.equipment.weapon, this.facing, { skill: false });
+    // equipped weapon appears in hand and swings with the attack; ranged
+    // shots streak straight at the target, whatever the angle
+    if (this.state.equipment?.weapon)
+      playWeaponSwing(this, this.player, this.state.equipment.weapon, this.facing, { skill: false, targetPos: target });
     // small forward step so a standing attack still reads as a strike,
     // not a frozen sprite
     const step = { up: [0, -8], down: [0, 8], left: [-8, 0], right: [8, 0] }[this.facing];
@@ -329,22 +359,33 @@ export default class WorldScene extends Phaser.Scene {
     const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
     this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
 
-    // a skill always shows the class's weapon in motion — the equipped one
-    // if carried, else the class's signature weapon (a skill is never a
+    // auto-aim first, then show the class's weapon in motion — the equipped
+    // one if carried, else the class's signature weapon (a skill is never a
     // bare-handed shrug, even before the first weapon drop)
+    const aimed = this.pickEnemyTarget(this.getAttackRangePx(true));
+    if (aimed) this.faceToward(aimed);
     const skillWeapon = this.state.equipment?.weapon ?? WEAPON_BY_CLASS[this.state.classId];
-    if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true });
+    if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one
     const facingOffset = { up: [0, -50], down: [0, 50], left: [-50, 0], right: [50, 0] }[this.facing];
-    const enemyPos = this.quest.getEnemyPos?.();
-    const target = enemyPos ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
+    const target = aimed ?? this.quest.getEnemyPos?.() ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
     if (def.capstone) playUltimate(this, this.state.classId, { x: this.player.x, y: this.player.y }, [], target);
     else playSkillFx(this, def, { x: this.player.x, y: this.player.y }, target, this.state.classId);
 
     // Summoner calls manifest an actual creature that follows and fights
     if (def.kind === 'summon') this.manifestSummon(def);
+
+    // Captain's War Horn: the four Guardsmen linger and strike on their own
+    // beat over the buff window — real hits, not just the visual charge
+    if (def.capstone && this.state.classId === 'captain') {
+      for (let i = 0; i < 6; i++) {
+        this.time.delayedCall(1400 + i * 700, () => {
+          if (this.quest.getEnemyPos?.()) this.quest.onSummonHit?.('guardsman');
+        });
+      }
+    }
 
     const rank = rankOf(this.state, id);
     this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));

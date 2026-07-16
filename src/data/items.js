@@ -48,6 +48,7 @@ export const ITEMS = {
   // weapon-stat system).
   woodsmans_sword: {
     id: 'woodsmans_sword',
+    range: 'short',
     name: "Woodsman's Sword",
     slot: 'weapon',
     weaponType: 'physical',
@@ -56,6 +57,7 @@ export const ITEMS = {
   },
   hunters_bow: {
     id: 'hunters_bow',
+    range: 'long',
     name: "Hunter's Bow",
     slot: 'weapon',
     weaponType: 'physical',
@@ -64,6 +66,7 @@ export const ITEMS = {
   },
   travelers_harp: {
     id: 'travelers_harp',
+    range: 'short',
     name: "Traveler's Harp",
     slot: 'weapon',
     weaponType: 'magic',
@@ -72,6 +75,7 @@ export const ITEMS = {
   },
   woodland_staff: {
     id: 'woodland_staff',
+    range: 'medium',
     name: 'Woodland Staff',
     slot: 'weapon',
     weaponType: 'magic',
@@ -80,6 +84,7 @@ export const ITEMS = {
   },
   travelers_hammer: {
     id: 'travelers_hammer',
+    range: 'short',
     name: "Traveler's Hammer",
     slot: 'weapon',
     weaponType: 'physical',
@@ -88,6 +93,7 @@ export const ITEMS = {
   },
   ranging_dagger: {
     id: 'ranging_dagger',
+    range: 'short',
     name: 'Ranging Dagger',
     slot: 'weapon',
     weaponType: 'physical',
@@ -96,6 +102,7 @@ export const ITEMS = {
   },
   travelers_talisman: {
     id: 'travelers_talisman',
+    range: 'medium',
     name: "Traveler's Talisman",
     slot: 'weapon',
     weaponType: 'magic',
@@ -103,6 +110,16 @@ export const ITEMS = {
     flavor: 'Carved bone and old knots — a focus for calling things that aren\'t there yet.',
   },
 };
+
+// Attack-range tiers, in world pixels. Bow is the longest reach in the
+// game; sling/staff/talisman sit mid-range; spear/horn (future items) are
+// medium-short; every other weapon fights at melee reach.
+export const RANGE_PX = { short: 84, mediumShort: 140, medium: 200, long: 300 };
+
+export function weaponRangePx(itemId) {
+  const item = itemId ? ITEMS[itemId] : null;
+  return RANGE_PX[item?.range] ?? RANGE_PX.short;
+}
 
 // Which first-weapon each class receives in Waypoint 3 (matches the
 // `weapon` flavor text on each class in data/classes.js).
