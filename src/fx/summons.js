@@ -115,6 +115,18 @@ const FORM_DEF = {
   bear: { tint: 0xffffff, count: 1, texture: 'smn-bear', bob: 3 },
 };
 
+// How hard each form actually hits relative to a plain summon strike — the
+// roster is supposed to be lopsided (bird/spirit weak, eagle/bear strong,
+// ent middling-but-tanky), so the flat rate every form used to share here
+// gets replaced with per-form numbers that quests read via SUMMON_POWER.
+export const SUMMON_POWER = {
+  bird: 0.35,
+  spirit: 0.3,
+  eagle: 0.8,
+  ent: 0.5,
+  bear: 0.85,
+};
+
 // Spawns a summon that follows the player and attacks on a beat.
 // getEnemyPos()/onHit(form) come from the scene's quest; durationMs from
 // Wild Bond (20s baseline). Returns a handle with .destroy().
@@ -182,36 +194,119 @@ export function spawnSummon(scene, form, player, getEnemyPos, onHit, durationMs 
     });
   }
 
+  const burstAt = (x, y, tint, count = 6, speed = 70) => {
+    const p = scene.add.particles(x, y, 'glow', { speed, lifespan: 350, scale: { start: 0.3, end: 0 }, tint, blendMode: 'ADD', emitting: false });
+    p.setDepth(59000);
+    p.explode(count);
+    scene.time.delayedCall(500, () => p.destroy());
+  };
+
+  let birdTurn = 0;
   const atkTimer = scene.time.addEvent({
     delay: 2600,
     loop: true,
     callback: () => {
       const enemy = getEnemyPos?.();
-      if (!enemy || !sprites[0]?.active) return;
-      const attacker = sprites[0];
-      scene.tweens.add({
-        targets: attacker,
-        x: enemy.x,
-        y: enemy.y - 8,
-        duration: 260,
-        ease: 'Quad.easeIn',
-        onComplete: () => {
-          const p = scene.add.particles(enemy.x, enemy.y, 'glow', {
-            speed: 70,
-            lifespan: 350,
-            scale: { start: 0.3, end: 0 },
-            tint: def.tint,
-            blendMode: 'ADD',
-            emitting: false,
+      if (!enemy) return;
+      if (form === 'bird') {
+        // a flock harassment pass — two birds peck in quick succession
+        // instead of one big dive, matching the "weakest attacker, meant
+        // for harassment" identity
+        const live = sprites.filter((s) => s.active);
+        if (!live.length) return;
+        for (let i = 0; i < Math.min(2, live.length); i++) {
+          const s = live[(birdTurn + i) % live.length];
+          scene.time.delayedCall(i * 150, () => {
+            if (!s.active) return;
+            scene.tweens.add({
+              targets: s,
+              x: enemy.x + Phaser.Math.Between(-8, 8),
+              y: enemy.y - 4,
+              duration: 170,
+              ease: 'Quad.easeIn',
+              yoyo: true,
+              onYoyo: () => {
+                burstAt(enemy.x, enemy.y, def.tint, 3, 40);
+                if (i === 0) onHit?.(form);
+              },
+            });
           });
-          p.setDepth(59000);
-          p.explode(6);
-          scene.time.delayedCall(500, () => p.destroy());
+        }
+        birdTurn += 2;
+      } else if (form === 'spirit') {
+        // a healer-lite: it lobs a slow droplet at the enemy rather than
+        // diving itself, then a faint life-link line ties the hit back to
+        // the master — "its hits ... keep the party topped up"
+        const s = sprites[0];
+        if (!s?.active) return;
+        const drop = scene.add.circle(s.x, s.y, 3, def.tint, 0.9).setDepth(59400).setBlendMode(Phaser.BlendModes.ADD);
+        scene.tweens.add({
+          targets: drop,
+          x: enemy.x,
+          y: enemy.y,
+          duration: 420,
+          ease: 'Sine.easeInOut',
+          onComplete: () => {
+            drop.destroy();
+            burstAt(enemy.x, enemy.y, def.tint, 5, 50);
+            onHit?.(form);
+            const link = scene.add.line(0, 0, s.x, s.y, player.x, player.y - 10, def.tint, 0.5).setOrigin(0, 0).setDepth(59300).setLineWidth(1.5).setAlpha(0.7);
+            scene.tweens.add({ targets: link, alpha: 0, duration: 380, onComplete: () => link.destroy() });
+            const healAmt = Math.round((scene.stats?.maxHp ?? 0) * 0.04);
+            if (healAmt > 0) {
+              scene.state.hp = Math.min(scene.stats.maxHp, scene.state.hp + healAmt);
+              scene.emitHp?.();
+              scene.showFloatText?.(player.x, player.y - 20, `+${healAmt}`, '#8ae8e8');
+            }
+          },
+        });
+      } else if (form === 'ent') {
+        // the tank stays put — roots erupt at the enemy's feet instead of
+        // the Ent lunging, and a taunt mark reads as "hey, over here"
+        const s = sprites[0];
+        if (!s?.active) return;
+        const taunt = scene.add.text(s.x, s.y - 30, '!', { fontFamily: 'serif', fontSize: '16px', color: '#f2d06b', stroke: '#05060f', strokeThickness: 3 }).setOrigin(0.5).setDepth(59500).setAlpha(0);
+        scene.tweens.add({ targets: taunt, alpha: 1, y: taunt.y - 8, duration: 200, yoyo: true, hold: 200, onComplete: () => taunt.destroy() });
+        for (let i = 0; i < 3; i++) {
+          scene.time.delayedCall(120 + i * 70, () => {
+            const vx = enemy.x + Phaser.Math.Between(-10, 10);
+            const vy = enemy.y + Phaser.Math.Between(2, 8);
+            const spike = scene.add.triangle(vx, vy, -3, 0, 3, 0, 0, -14, 0x4a8a4a, 0.95).setDepth(enemy.y).setAlpha(0);
+            scene.tweens.add({
+              targets: spike,
+              alpha: 1,
+              y: vy - 6,
+              duration: 140,
+              ease: 'Back.easeOut',
+              onComplete: () => scene.tweens.add({ targets: spike, alpha: 0, delay: 200, duration: 250, onComplete: () => spike.destroy() }),
+            });
+          });
+        }
+        scene.time.delayedCall(150, () => {
+          burstAt(enemy.x, enemy.y, 0x8ae89a, 6, 55);
           onHit?.(form);
-          // no trip back to the master — the ambient follow-timer above
-          // eases it right back into its hover spot beside the enemy
-        },
-      });
+        });
+      } else {
+        // eagle / bear (and anything else): the generic hard-hitting dive,
+        // scaled up for the two heaviest hitters in the roster
+        const attacker = sprites[0];
+        if (!attacker?.active) return;
+        const heavy = form === 'eagle' || form === 'bear';
+        scene.tweens.add({
+          targets: attacker,
+          x: enemy.x,
+          y: enemy.y - 8,
+          duration: heavy ? 210 : 260,
+          ease: 'Quad.easeIn',
+          onComplete: () => {
+            burstAt(enemy.x, enemy.y, def.tint, heavy ? 10 : 6, heavy ? 100 : 70);
+            if (heavy) scene.cameras.main.shake(90, 0.003);
+            onHit?.(form);
+            // no trip back to the master — the ambient follow-timer above
+            // eases it right back into its hover spot beside the enemy
+          },
+        });
+      }
     },
   });
 
