@@ -208,6 +208,136 @@ export function musicNotes(scene, x, y, { count = 5, tint = '#f2d06b', delay = 0
   }
 }
 
+// Loresinger notes with a per-skill shape/color/motion, so each song reads
+// as its own attack instead of every skill flinging the same gold notes.
+// `pattern` controls the motion: rise (gentle, uplifting — buffs), burst
+// (sharp, jarring outward from the hit — Dissonant Chord), wind (streams
+// sideways — Ballad of Swiftness), jab (needling straight down — Mocking
+// Verse), heavyfall (one big slow note with weight — Dirge of Sorrow).
+export function songNotes(scene, x, y, { glyphs = ['♪'], color = '#f2d06b', pattern = 'rise', count = 6 } = {}) {
+  for (let i = 0; i < count; i++) {
+    let startX = x;
+    let startY = y;
+    let endX = x;
+    let endY = y;
+    let delay = i * 90;
+    let duration = 900;
+    let size = Phaser.Math.Between(13, 18);
+    let ease = 'Sine.easeOut';
+    if (pattern === 'burst') {
+      const a = (i / count) * Math.PI * 2;
+      endX = x + Math.cos(a) * 32;
+      endY = y + Math.sin(a) * 24;
+      delay = 0;
+      duration = 260;
+      ease = 'Quad.easeOut';
+    } else if (pattern === 'wind') {
+      startX = x - 24 - i * 12;
+      startY = y + Phaser.Math.Between(-10, 10);
+      endX = startX + 56;
+      endY = startY;
+      delay = i * 70;
+      duration = 500;
+      ease = 'Sine.easeIn';
+    } else if (pattern === 'jab') {
+      startX = x + Phaser.Math.Between(-14, 14);
+      startY = y - 28;
+      endX = startX;
+      endY = y + 2;
+      delay = i * 130;
+      duration = 200;
+      ease = 'Quad.easeIn';
+    } else if (pattern === 'heavyfall') {
+      startX = x;
+      startY = y - 64;
+      endX = x;
+      endY = y;
+      delay = 0;
+      duration = 420;
+      size = 30;
+      ease = 'Quad.easeIn';
+      count = 1;
+    } else {
+      // rise
+      startX += Phaser.Math.Between(-24, 24);
+      endX = startX + Phaser.Math.Between(-10, 10);
+      endY = y - Phaser.Math.Between(34, 58);
+    }
+    const glyph = glyphs[i % glyphs.length];
+    const txt = scene.add
+      .text(startX, startY, glyph, { fontFamily: 'serif', fontSize: `${size}px`, color, stroke: '#05060f', strokeThickness: 2 })
+      .setOrigin(0.5)
+      .setDepth(59020)
+      .setAlpha(0);
+    scene.tweens.add({
+      targets: txt,
+      delay,
+      alpha: { from: 0.95, to: 0 },
+      x: endX,
+      y: endY,
+      duration,
+      ease,
+      onComplete: () => txt.destroy(),
+    });
+    if (pattern === 'heavyfall') break; // single note, no loop
+  }
+}
+
+// Herbmaster nature textures — a leaf and a thorn, generated once, tinted
+// per skill so Athelas-named skills read as leaves and Thorned-named
+// skills read as actual thorns instead of a generic gold buff ring.
+function ensureHerbTextures(scene) {
+  const mk = (key, w, h, draw) => {
+    if (scene.textures.exists(key)) return;
+    const g = scene.make.graphics({ add: false });
+    draw(g);
+    g.generateTexture(key, w, h);
+    g.destroy();
+  };
+  mk('fx-leaf', 12, 8, (g) => {
+    g.fillStyle(0xffffff, 1);
+    g.fillEllipse(6, 4, 11, 7);
+    g.lineStyle(1, 0x1a2038, 0.4);
+    g.lineBetween(1, 4, 11, 4);
+  });
+  mk('fx-thorn', 8, 10, (g) => {
+    g.fillStyle(0xffffff, 1);
+    g.fillTriangle(4, 0, 0, 10, 8, 10);
+  });
+}
+
+function leafRise(scene, x, y, { tint = 0x7fe89a, count = 8, spread = 24 } = {}) {
+  ensureHerbTextures(scene);
+  const p = scene.add.particles(x, y, 'fx-leaf', {
+    x: { min: -spread, max: spread },
+    speedY: { min: -70, max: -25 },
+    speedX: { min: -20, max: 20 },
+    rotate: { min: -50, max: 50 },
+    lifespan: 900,
+    scale: { start: 1.2, end: 0.6 },
+    tint,
+    emitting: false,
+  });
+  p.setDepth(59000);
+  p.explode(count);
+  scene.time.delayedCall(1100, () => p.destroy());
+}
+
+function thornBurst(scene, x, y, { tint = 0x8a6a3a, count = 8 } = {}) {
+  ensureHerbTextures(scene);
+  const p = scene.add.particles(x, y, 'fx-thorn', {
+    speed: { min: 30, max: 70 },
+    lifespan: 380,
+    scale: { start: 1.1, end: 0.4 },
+    rotate: { min: 0, max: 360 },
+    tint,
+    emitting: false,
+  });
+  p.setDepth(59000);
+  p.explode(count);
+  scene.time.delayedCall(500, () => p.destroy());
+}
+
 function cracks(scene, x, y, { tint = 0xf2b06b, count = 8, length = 55, duration = 700 } = {}) {
   const g = scene.add.graphics({ x, y }).setDepth(58990).setAlpha(1);
   g.lineStyle(2, tint, 0.9);
@@ -238,10 +368,61 @@ function flashVeil(scene, { tint = 0x05060f, alpha = 0.55, duration = 260 } = {}
 
 // ---------- regular skills: one readable beat per kind ----------
 
+// Loresinger — every skill is its own song, so the notes differ in shape,
+// color, and flight pattern per skill (see songNotes' pattern doc above)
+// instead of the same gold notes flying on every cast.
+const LORESINGER_FX = {
+  note_of_courage: (scene, caster, t) => {
+    songNotes(scene, caster.x, caster.y - 14, { glyphs: ['♪', '♫'], color: '#f2d06b', pattern: 'rise', count: 6 });
+    ring(scene, t.x, t.y, { tint: TINT.buff, radius: 40 });
+    rise(scene, t.x, t.y, { tint: TINT.buff, count: 6 });
+  },
+  dissonant_chord: (scene, caster, t) => {
+    songNotes(scene, t.x, t.y, { glyphs: ['♩'], color: '#4a7fd9', pattern: 'burst', count: 8 });
+    crescent(scene, t.x, t.y, { tint: TINT.magic, rotation: Phaser.Math.FloatBetween(-0.6, 0.6) });
+  },
+  ballad_of_swiftness: (scene, caster, t) => {
+    songNotes(scene, caster.x, caster.y - 10, { glyphs: ['♫', '♬'], color: '#bfe8ff', pattern: 'wind', count: 6 });
+    ring(scene, t.x, t.y, { tint: 0xbfe8ff, radius: 40 });
+  },
+  mocking_verse: (scene, caster, t) => {
+    songNotes(scene, t.x, t.y, { glyphs: ['♩'], color: '#b07fe8', pattern: 'jab', count: 5 });
+    rain(scene, t.x, t.y - 10, { tint: TINT.debuff, count: 4 });
+  },
+  dirge_of_sorrow: (scene, caster, t) => {
+    songNotes(scene, t.x, t.y, { glyphs: ['♪'], color: '#1a2a6a', pattern: 'heavyfall' });
+    ring(scene, t.x, t.y, { tint: 0x1a2a6a, radius: 50, duration: 500 });
+    burst(scene, t.x, t.y, { tint: TINT.magic, count: 6, speed: 70 });
+  },
+};
+
+// Herbmaster — Athelas-named skills read as leaves, Thorned Ward as actual
+// thorns, Wrath of the Earth as cracked brown-green ground (not a generic
+// blue magic burst) — the name/description dictates the shape, not just
+// the skill's mechanical kind.
+const HERBMASTER_FX = {
+  athelas_touch: (scene, caster, t) => {
+    leafRise(scene, t.x, t.y, { tint: 0x7fe89a, count: 8 });
+    pillar(scene, t.x, t.y + 12, { tint: TINT.heal, h: 60 });
+  },
+  regrowth: (scene, caster, t) => {
+    ring(scene, t.x, t.y, { tint: 0x5ac26a, radius: 28, duration: 500 });
+    leafRise(scene, t.x, t.y, { tint: 0x5ac26a, count: 6, spread: 16 });
+  },
+  thorned_ward: (scene, caster, t) => {
+    ring(scene, t.x, t.y, { tint: 0x6a8f4a, radius: 32 });
+    thornBurst(scene, t.x, t.y, { tint: 0x8a6a3a, count: 10 });
+  },
+  wrath_of_the_earth: (scene, caster, t) => {
+    cracks(scene, t.x, t.y, { tint: 0x8a9a5a, length: 34, duration: 500 });
+    burst(scene, t.x, t.y, { tint: 0x9a7a4a, count: 10, speed: 80 });
+  },
+};
+
 export function playSkillFx(scene, def, caster, target, classId = null) {
   const t = target ?? caster;
-  // every Loresinger skill is a song — notes fly on all of them
-  if (classId === 'loresinger') musicNotes(scene, caster.x, caster.y - 14, { count: 4 });
+  if (classId === 'loresinger' && LORESINGER_FX[def.id]) return LORESINGER_FX[def.id](scene, caster, t);
+  if (classId === 'herbmaster' && HERBMASTER_FX[def.id]) return HERBMASTER_FX[def.id](scene, caster, t);
   switch (def.kind) {
     case 'heal':
     case 'hot':

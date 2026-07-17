@@ -30,6 +30,9 @@ export function weaponShapeOf(itemId) {
 const ANIM_FAMILY = {
   spear: 'thrust',
   bow: 'shoot',
+  staff: 'spellcast',
+  harp: 'spellcast',
+  talisman: 'spellcast',
 };
 
 export function animFamilyOf(itemId) {
@@ -145,9 +148,16 @@ const HAND_SHOOT = {
   down: { x: 0, y: 8, flip: false, dx: 0, dy: 1 },
   up: { x: 0, y: -11, flip: true, dx: 0, dy: -1 },
 };
+const HAND_SPELLCAST = {
+  right: { x: 11, y: -9, flip: false, dx: 1, dy: 0 },
+  left: { x: -11, y: -9, flip: true, dx: -1, dy: 0 },
+  down: { x: 0, y: 3, flip: false, dx: 0, dy: 1 },
+  up: { x: 0, y: -15, flip: true, dx: 0, dy: -1 },
+};
 function handTableFor(family) {
   if (family === 'thrust') return HAND_THRUST;
   if (family === 'shoot') return HAND_SHOOT;
+  if (family === 'spellcast') return HAND_SPELLCAST;
   return HAND_SLASH;
 }
 
