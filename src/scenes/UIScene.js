@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS, EV } from '../config.js';
 import { makeTextButton } from '../ui/widgets.js';
+import { ensureSkillIconTextures, iconTexture } from '../fx/skillicons.js';
 
 // HUD overlay running above WorldScene:
 //   - virtual joystick (left half of the screen, appears under the thumb)
@@ -18,6 +19,7 @@ export default class UIScene extends Phaser.Scene {
   }
 
   create() {
+    ensureSkillIconTextures(this);
     this.game.joy = { x: 0, y: 0, active: false };
     this.game.uiBlocking = false;
 
@@ -155,7 +157,11 @@ export default class UIScene extends Phaser.Scene {
     const txt = this.add.text(0, 0, label, {
       fontFamily: FONTS.body, fontSize: radius < 30 ? '10px' : '14px', color: COLORS.text, align: 'center', wordWrap: { width: radius * 1.7 },
     }).setOrigin(0.5);
-    cont.add([circle, txt]);
+    // an optional skill/effect icon — hidden until renderRing() gives it a
+    // texture; when shown, the icon takes the upper half of the circle and
+    // the label shrinks to a caption underneath it
+    const icon = this.add.image(0, -radius * 0.28, iconTexture('bash')).setVisible(false).setDisplaySize(radius * 0.85, radius * 0.85);
+    cont.add([circle, txt, icon]);
     cont.setSize(radius * 2, radius * 2);
     // hit-area coords are local with (0,0) at the object's TOP-LEFT, so the
     // circle must be centered at (radius, radius) — centering it at (0,0)
@@ -164,7 +170,7 @@ export default class UIScene extends Phaser.Scene {
     circle.on('pointerdown', () => circle.setFillStyle(0x1c2a50, 1));
     circle.on('pointerup', () => { circle.setFillStyle(COLORS.panel, 0.85); onTap(); });
     circle.on('pointerout', () => circle.setFillStyle(COLORS.panel, 0.85));
-    return { cont, txt, circle };
+    return { cont, txt, circle, icon };
   }
 
   layout() {
@@ -217,9 +223,19 @@ export default class UIScene extends Phaser.Scene {
         return;
       }
       const isPotion = !!s.potion;
+      // skills get their icon glyph up top and a small name caption below
+      // it; potions have no icon (their 🧪 emoji name already reads fine)
+      if (s.icon) {
+        b.icon.setTexture(iconTexture(s.icon)).setTint(s.tint ?? 0xffffff).setVisible(true);
+        b.txt.setPosition(0, 15).setFontSize(8);
+      } else {
+        b.icon.setVisible(false);
+        b.txt.setPosition(0, 0).setFontSize(10);
+      }
       b.txt.setText(s.name);
       b.circle.setStrokeStyle(3, s.ready ? (isPotion ? (s.potion === 'hp' ? 0x3fae5a : 0x4a7fd9) : 0x6a8fd9) : 0x3a4a5a, 0.9);
       b.txt.setColor(s.ready ? '#e8e4d8' : '#5a6a88');
+      b.icon.setAlpha(s.ready ? 1 : 0.45);
       b.cont.setVisible(true);
     });
   }

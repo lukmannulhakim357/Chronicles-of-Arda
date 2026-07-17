@@ -9,6 +9,7 @@ import { getTree } from '../data/skills.js';
 import { playUltimate } from '../fx/skillfx.js';
 import { playWeaponSwing } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, ALT_WEAPON_BY_CLASS } from '../data/items.js';
+import { ensureSkillIconTextures, iconTexture, iconTint } from '../fx/skillicons.js';
 import { derivedStats } from '../data/classes.js';
 
 // classes whose capstone is party-support — their preview adds a companion
@@ -24,6 +25,7 @@ export default class CreationScene extends Phaser.Scene {
   }
 
   create() {
+    ensureSkillIconTextures(this);
     this.kindredId = null;
     this.showKindreds();
   }
@@ -185,13 +187,18 @@ export default class CreationScene extends Phaser.Scene {
     items.push(panel);
     const panelTop = height / 2 - panel.height / 2;
 
+    if (capstone?.icon) {
+      items.push(
+        this.add.image(cx, panelTop + 10, iconTexture(capstone.icon)).setDisplaySize(20, 20).setTint(iconTint(capstone)).setDepth(302)
+      );
+    }
     items.push(
-      this.add.text(cx, panelTop + 10, `${klass.name} — Ultimate: ${capstone?.name ?? ''}`, {
+      this.add.text(cx, panelTop + (capstone?.icon ? 24 : 10), `${klass.name} — Ultimate: ${capstone?.name ?? ''}`, {
         fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968',
       }).setOrigin(0.5, 0).setDepth(302)
     );
     items.push(
-      this.add.text(cx, panelTop + 32, capstone?.effect ?? '', {
+      this.add.text(cx, panelTop + (capstone?.icon ? 46 : 32), capstone?.effect ?? '', {
         fontFamily: FONTS.body, fontSize: '10px', color: COLORS.textDim, align: 'center',
         wordWrap: { width: panelW - 40 }, lineSpacing: 2,
       }).setOrigin(0.5, 0).setDepth(302)

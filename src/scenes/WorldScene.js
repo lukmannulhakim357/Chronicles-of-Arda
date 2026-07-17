@@ -13,6 +13,7 @@ import { playSkillFx, playUltimate } from '../fx/skillfx.js';
 import { playWeaponSwing } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
+import { iconTint } from '../fx/skillicons.js';
 
 const SPEED = 150;
 
@@ -329,7 +330,7 @@ export default class WorldScene extends Phaser.Scene {
       const def = skillDef(this.state.classId, entry.id);
       if (!def) return null;
       const ready = (this.skillCooldowns?.[entry.id] ?? 0) <= this.time.now && (this.state.mp ?? 0) >= (def.mp ?? 0);
-      return { name: def.name, ready };
+      return { name: def.name, ready, icon: def.icon, tint: iconTint(def) };
     });
     this.game.events.emit(EV.SKILLBAR, { slots });
   }
