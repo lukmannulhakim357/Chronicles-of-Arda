@@ -207,8 +207,8 @@ export function playArrowRain(scene, targetPos, { count = 10, radius = 50 } = {}
   }
 }
 
-function pebble(scene, x, y, dx, dy, delay = 0, dist = 68) {
-  const p = scene.add.circle(x, y, 3, 0x8a8a8a, 1).setDepth(59006).setAlpha(0);
+function pebble(scene, x, y, dx, dy, delay = 0, dist = 68, tint = 0x8a8a8a) {
+  const p = scene.add.circle(x, y, 3, tint, 1).setDepth(59006).setAlpha(0);
   scene.tweens.add({
     targets: p,
     delay,
@@ -254,7 +254,7 @@ function spawnWeapon(scene, player, shape, hand, skill) {
 // differently per family: melee arcs (skills double-swing), bows loose a
 // visible arrow (skills a fanned volley), magic foci raise with a flare
 // (skills add a spell ring at the tip).
-export function playWeaponSwing(scene, player, itemId, facing, { skill = false, targetPos = null, shots = null, pierce = false, arrowTint = null } = {}) {
+export function playWeaponSwing(scene, player, itemId, facing, { skill = false, targetPos = null, shots = null, pierce = false, arrowTint = null, jabs = null } = {}) {
   const shape = weaponShapeOf(itemId);
   if (!shape) return;
   ensureWeaponTextures(scene);
@@ -299,7 +299,9 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
     }
   } else if (shape === 'dagger') {
     // a quick stab straight down the aim line — every Skirmisher skill
-    // (Quick Stab, Backstab, Assassinate) describes a jab, not a sword arc
+    // (Quick Stab, Backstab, Assassinate) describes a jab, not a sword arc.
+    // Quick Stab is one poke ("quick in, quick out"); Backstab is a flurry.
+    const jabCount = jabs ?? (skill ? 2 : 1);
     img.rotation = Math.atan2(aim.dy, aim.dx) + Math.PI / 2;
     scene.tweens.add({
       targets: img,
@@ -310,7 +312,7 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
       ease: 'Quad.easeOut',
       onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 90, onComplete: () => img.destroy() }),
     });
-    if (skill) {
+    if (jabCount >= 2) {
       // a second, faster stab — Backstab reads as a flurry, not one poke
       const img2 = spawnWeapon(scene, player, shape, hand, true);
       img2.setAlpha(0);
@@ -403,23 +405,41 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
     });
     scene.time.delayedCall(drawMs + 260, () => scene.tweens.add({ targets: img, alpha: 0, duration: 160, onComplete: () => img.destroy() }));
   } else if (shape === 'sling') {
-    img.rotation = Math.atan2(hand.dy, hand.dx) * 0.5;
+    // whirled in a circle before the release — a sling is wound up, not
+    // just flicked, and how many stones fly differs per Skirmisher skill
+    // just like the dagger's jab count does
+    const shotCount = shots ?? (skill ? 3 : 1);
+    const tint = arrowTint ?? 0x8a8a8a;
+    const spinTurns = skill ? 1.6 : 1;
+    const spinMs = skill ? 320 : 210;
+    const spin = { a: 0 };
     scene.tweens.add({
-      targets: img,
-      x: x - hand.dx * 3,
-      y: y - hand.dy * 3,
-      duration: 130,
-      yoyo: true,
-      onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() }),
+      targets: spin,
+      a: Math.PI * 2 * spinTurns,
+      duration: spinMs,
+      ease: 'Quad.easeIn',
+      onUpdate: () => {
+        img.x = x + Math.cos(spin.a) * 9;
+        img.y = y + Math.sin(spin.a) * 6;
+        img.rotation = spin.a;
+      },
+      onComplete: () => {
+        img.x = x;
+        img.y = y;
+        const release = (ox, oy, ddx, ddy, delay) => pebble(scene, ox, oy, ddx, ddy, delay, aim.dist, tint);
+        if (shotCount >= 3) {
+          release(x, y, aim.dx, aim.dy, 0);
+          release(x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 90);
+          release(x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 180);
+        } else if (shotCount === 2) {
+          release(x, y, aim.dx, aim.dy, 0);
+          release(x, y, aim.dx, aim.dy, 130);
+        } else {
+          release(x, y, aim.dx, aim.dy, 0);
+        }
+        scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() });
+      },
     });
-    if (skill) {
-      // volley: three shots fanned out around the aim line
-      pebble(scene, x, y, aim.dx, aim.dy, 90, aim.dist);
-      pebble(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 170, aim.dist);
-      pebble(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 250, aim.dist);
-    } else {
-      pebble(scene, x, y, aim.dx, aim.dy, 90, aim.dist); // every shot looses a projectile
-    }
   } else if (shape === 'harp') {
     // played, not swung — a quick strum (the strings wobble), a note pops
     // off with it, and on a skill the chord resolves into a blast at the

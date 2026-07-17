@@ -10,7 +10,7 @@ import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
-import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin, playArrowRain, playChargedSmash, playGroundSlam, playShadowDash, playVanishFx } from '../fx/weapons.js';
+import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin, playArrowRain, playChargedSmash, playGroundSlam, playShadowDash, playVanishFx, weaponShapeOf } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 import { iconTint } from '../fx/skillicons.js';
@@ -393,6 +393,9 @@ export default class WorldScene extends Phaser.Scene {
     //   Ground Slam   — the hammer drops at the Smith's own feet (self AoE)
     //   Shadow Step   — a real short dash with afterimages, not an attack
     //   Vanish        — the player sprite itself fades, not just a ring FX
+    //   Quick Stab / Backstab — a single dagger jab or sling stone (Quick
+    //   Stab), a flurry/double-release (Backstab) — same read with either
+    //   weapon, since a sling swaps in for the dagger on some builds
     if (id === 'shield_slam') playShieldBash(this, this.player, this.facing, { targetPos: aimed });
     else if (id === 'whirlwind') playWhirlwindSpin(this, this.player, skillWeapon, this.facing);
     else if (id === 'quick_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
@@ -406,7 +409,11 @@ export default class WorldScene extends Phaser.Scene {
     else if (id === 'ground_slam') playGroundSlam(this, this.player);
     else if (id === 'shadow_step') playShadowDash(this, this.player, this.facing);
     else if (id === 'vanish') playVanishFx(this, this.player, (def.buffDuration ?? 4) * 1000);
-    else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
+    else if (id === 'quick_stab') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, jabs: 1, shots: 1 });
+    else if (id === 'backstab') {
+      const isSling = weaponShapeOf(skillWeapon) === 'sling';
+      playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, ...(isSling ? { shots: 2 } : { jabs: 2 }) });
+    } else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one
