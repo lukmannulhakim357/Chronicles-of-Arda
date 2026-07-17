@@ -152,6 +152,15 @@ export function ensureItemTypeIcons(scene) {
     g.fillRect(c - 1.5, c + 5, 3, 6); // grip
     g.fillCircle(c, c + 11, 2); // pommel
   });
+  // trade/crafting goods (Sturdy Hide etc.) aren't equippable, so they get
+  // their own bundle-of-goods silhouette instead of a paperdoll-slot icon
+  ensureSlotIcon(scene, 'slot-icon-material', (g) => {
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(c - 7, c - 4, 14, 11, 3); // bundle body
+    g.lineStyle(2, 0x000000, 0.35);
+    g.lineBetween(c - 7, c - 4, c + 7, c - 4); // fold line across the top
+    g.fillTriangle(c - 3, c - 10, c + 3, c - 10, c, c - 4); // tied bunch above the fold
+  });
 }
 
 export function slotIconTexture(slotKey) {

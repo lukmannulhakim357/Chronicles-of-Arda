@@ -49,7 +49,7 @@ export const WAYPOINTS = [
     terrain: 'Open wild lands',
     beat: 'Years of walking, hunting, and enduring.',
     quest: 'The Long Road',
-    built: false,
+    built: true,
   },
   {
     id: 'ered-luin',
@@ -57,7 +57,7 @@ export const WAYPOINTS = [
     terrain: 'The Blue Mountains',
     beat: 'Strangers of stone and beard already dwell here.',
     quest: 'First Contact',
-    built: false,
+    built: true,
   },
   {
     id: 'beleriand',

@@ -8,6 +8,10 @@ import * as valesanduin from './valesanduin.js';
 import LenwesChoiceQuest from '../quests/lenweschoice.js';
 import * as hithaeglir from './hithaeglir.js';
 import ThePassQuest from '../quests/thepass.js';
+import * as rhovanion from './rhovanion.js';
+import TheLongRoadQuest from '../quests/thelongroad.js';
+import * as eredluin from './eredluin.js';
+import FirstContactQuest from '../quests/firstcontact.js';
 import * as training from './training.js';
 import TrainingQuest from '../quests/training.js';
 
@@ -20,6 +24,8 @@ export const ZONES = {
   'great-forest': { build: greatforest.build, Quest: LostBeforeNightfallQuest, questId: 'lost-before-nightfall' },
   'vales-anduin': { build: valesanduin.build, Quest: LenwesChoiceQuest, questId: 'lenwes-choice' },
   hithaeglir: { build: hithaeglir.build, Quest: ThePassQuest, questId: 'the-pass' },
+  rhovanion: { build: rhovanion.build, Quest: TheLongRoadQuest, questId: 'the-long-road' },
+  'ered-luin': { build: eredluin.build, Quest: FirstContactQuest, questId: 'first-contact' },
   training: { build: training.build, Quest: TrainingQuest, questId: 'training' }, // class-trial grounds, never saved
 };
 

@@ -3,7 +3,7 @@ import { COLORS, FONTS, ROW, SHEET_COLS } from '../config.js';
 import { makeTextButton } from '../ui/widgets.js';
 import { MATERIALS, armorStyle, drawPanel, drawBagPanel, ensureItemTypeIcons, slotIconTexture } from '../ui/theme.js';
 import { getState, setState, effectiveStats } from '../systems/GameState.js';
-import { itemById, bonusLine } from '../data/items.js';
+import { itemById, bonusLine, EQUIPPABLE_SLOTS } from '../data/items.js';
 import { derivedStats, classById } from '../data/classes.js';
 import { kindredById } from '../data/kindreds.js';
 import { xpToNextLevel } from '../data/leveling.js';
@@ -46,9 +46,14 @@ const SLOT_DEFS = [
   { key: 'chest', label: 'Chest', locked: false },
   { key: 'gloves', label: 'Gloves', locked: false },
   { key: 'boots', label: 'Boots', locked: false },
-  { key: 'accessory', label: 'Trinket', locked: true },
+  { key: 'accessory', label: 'Trinket', locked: false }, // unlocked by Waypoint 7's crafted trinkets
   { key: 'weapon', label: 'Weapon', locked: false },
 ];
+
+// Only true armor (chest/gloves/boots) gets the heavy/light/robe weight-
+// class styling — weapons, trinkets, and trade goods stay a neutral gold
+// look, the same way weapons already did before trinkets/materials existed.
+const ARMOR_SLOTS = ['chest', 'gloves', 'boots'];
 
 const STAT_INFO = {
   VIT: 'Max HP, HP regen',
@@ -249,9 +254,8 @@ export default class CharacterScene extends Phaser.Scene {
     const item = itemId ? itemById(itemId) : null;
     const selected = this.inspect?.kind === 'slot' && this.inspect.slotKey === slotKey;
     // armor slots pick up their weight-class color (heavy/light/robe);
-    // weapon has its own neutral steel look; empty/locked slots stay dark
-    const isWeapon = slotKey === 'weapon';
-    const style = item && !isWeapon ? armorStyle(item.armorType) : null;
+    // weapon and trinket keep a neutral gold look; empty/locked slots stay dark
+    const style = item && ARMOR_SLOTS.includes(slotKey) ? armorStyle(item.armorType) : null;
     const fill = item ? (style ? style.base : MATERIALS.slate.light) : MATERIALS.slate.dark;
     const border = item ? (style ? style.border : COLORS.gold) : MATERIALS.slate.light;
     const box = this.add.rectangle(x, y, w, h, fill, item ? 0.92 : 0.6);
@@ -440,7 +444,7 @@ export default class CharacterScene extends Phaser.Scene {
       const cx2 = x0 + col * (cell + gap) + cell / 2;
       const cy2 = gridTop + row * (cell + gap) + cell / 2;
       const selected = this.inspect?.kind === 'inv' && this.inspect.index === i;
-      const style = item.slot !== 'weapon' ? armorStyle(item.armorType) : null;
+      const style = ARMOR_SLOTS.includes(item.slot) ? armorStyle(item.armorType) : null;
       const box = this.add
         .rectangle(cx2, cy2, cell, cell, style ? style.base : MATERIALS.slate.light, 0.92)
         .setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : style ? style.border : COLORS.gold, selected ? 1 : 0.85);
@@ -476,7 +480,7 @@ export default class CharacterScene extends Phaser.Scene {
         .setOrigin(0.5);
       return;
     }
-    const style = item.slot !== 'weapon' ? armorStyle(item.armorType) : null;
+    const style = ARMOR_SLOTS.includes(item.slot) ? armorStyle(item.armorType) : null;
     const iconX = x0 + 20;
     this.add
       .rectangle(iconX, top + 18, 28, 28, style ? style.base : MATERIALS.slate.light, 1)
@@ -501,6 +505,9 @@ export default class CharacterScene extends Phaser.Scene {
         lineSpacing: 2,
       })
       .setOrigin(0, 0);
+    // trade/crafting goods (e.g. Sturdy Hide) aren't equippable at all —
+    // no Equip button for those, just the inspect view
+    if (this.inspect.kind === 'inv' && !EQUIPPABLE_SLOTS.includes(item.slot)) return;
     const label = this.inspect.kind === 'inv' ? 'Equip' : 'Unequip';
     makeTextButton(this, x0 + w - 46, top + h - 16, 80, 26, label, () => {
       if (this.inspect.kind === 'inv') this.equip(this.inspect.itemId);
@@ -511,7 +518,7 @@ export default class CharacterScene extends Phaser.Scene {
 
   equip(itemId) {
     const item = itemById(itemId);
-    if (!item) return;
+    if (!item || !EQUIPPABLE_SLOTS.includes(item.slot)) return;
     const idx = this.state.inventory.indexOf(itemId);
     if (idx === -1) return;
     this.state.inventory.splice(idx, 1);
