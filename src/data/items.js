@@ -66,7 +66,7 @@ export const ITEMS = {
   },
   travelers_harp: {
     id: 'travelers_harp',
-    range: 'short',
+    range: 'medium',
     name: "Traveler's Harp",
     slot: 'weapon',
     weaponType: 'magic',
@@ -109,12 +109,55 @@ export const ITEMS = {
     bonus: { MAG: 3 },
     flavor: 'Carved bone and old knots — a focus for calling things that aren\'t there yet.',
   },
+
+  // Alternate weapons — classes.js lists a second weapon for several
+  // classes (e.g. Skirmisher's "Dagger & sling"); these fill that second
+  // slot so each class's full weapon range can actually be tried, not just
+  // its Waypoint-3 default. Not granted by any quest yet — available for
+  // fitting/testing via the Training Grounds (src/scenes/CreationScene.js).
+  ash_spear: {
+    id: 'ash_spear',
+    range: 'mediumShort',
+    name: 'Ash Spear',
+    slot: 'weapon',
+    weaponType: 'physical',
+    bonus: { STR: 3 },
+    flavor: 'A long haft of ash wood, iron-tipped — reach over a sword\'s, weight over a dagger\'s.',
+  },
+  hunters_sling: {
+    id: 'hunters_sling',
+    range: 'medium',
+    name: "Hunter's Sling",
+    slot: 'weapon',
+    weaponType: 'physical',
+    bonus: { DEX: 3 },
+    flavor: 'A worn leather cradle and cord — a shepherd\'s tool turned to war.',
+  },
+  captains_horn: {
+    id: 'captains_horn',
+    range: 'mediumShort',
+    name: "Captain's Horn",
+    slot: 'weapon',
+    weaponType: 'physical',
+    bonus: { STR: 2 },
+    flavor: 'Banded brass, dented from use as both signal and cudgel.',
+  },
+  summoners_horn: {
+    id: 'summoners_horn',
+    range: 'mediumShort',
+    name: "Summoner's Horn",
+    slot: 'weapon',
+    weaponType: 'magic',
+    bonus: { MAG: 2 },
+    flavor: 'Carved with old bindings — its call reaches further than its sound should carry.',
+  },
 };
 
-// Attack-range tiers, in world pixels. Bow is the longest reach in the
-// game; sling/staff/talisman sit mid-range; spear/horn (future items) are
-// medium-short; every other weapon fights at melee reach.
-export const RANGE_PX = { short: 84, mediumShort: 140, medium: 200, long: 300 };
+// Attack-range tiers, in world pixels — Ranger's bow is the longest reach in
+// the game; sling/staff/harp/talisman sit mid-range; spear/horn are
+// medium-short; every other weapon (sword, dagger, hammer) fights at
+// close melee reach.
+export const RANGE_PX = { short: 50, mediumShort: 100, medium: 160, long: 250 };
 
 export function weaponRangePx(itemId) {
   const item = itemId ? ITEMS[itemId] : null;
@@ -132,6 +175,20 @@ export const WEAPON_BY_CLASS = {
   skirmisher: 'ranging_dagger',
   captain: 'woodsmans_sword',
   summoner: 'travelers_talisman',
+};
+
+// The second weapon classes.js lists for a class (e.g. Herbmaster's "Staff,
+// backup dagger"), for the Training Grounds to hand out alongside the
+// default so both can be tried. null where a class only has the one.
+export const ALT_WEAPON_BY_CLASS = {
+  warrior: 'ash_spear',
+  ranger: null,
+  loresinger: 'woodland_staff',
+  herbmaster: 'ranging_dagger',
+  smith: null,
+  skirmisher: 'hunters_sling',
+  captain: 'captains_horn',
+  summoner: 'summoners_horn',
 };
 
 export function itemById(id) {

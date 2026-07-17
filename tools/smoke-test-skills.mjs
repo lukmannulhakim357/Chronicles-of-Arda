@@ -52,7 +52,7 @@ let rows = await page.evaluate(() => {
   return s.children.list.filter((o) => o.text !== undefined).map((o) => o.text);
 });
 console.log('Cleave unlocked after ranking Bash:', rows.includes('Locked') && !rows.slice(rows.indexOf('Cleave') + 1, rows.indexOf('Cleave') + 2).includes('Locked'));
-console.log('points-spent line:', rows.find((t) => t.includes('points spent')));
+console.log('points-spent line:', rows.find((t) => t.includes('spent')));
 await page.screenshot({ path: `${OUT}/02-after-rankup.png` });
 
 // close — the HUD skill wheel should now contain Bash (auto-filled from

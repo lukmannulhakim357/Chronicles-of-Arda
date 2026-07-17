@@ -7,8 +7,9 @@ import { newGameState, setState } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { getTree } from '../data/skills.js';
 import { playUltimate } from '../fx/skillfx.js';
-import { playWeaponSwing } from '../fx/weapons.js';
-import { WEAPON_BY_CLASS } from '../data/items.js';
+import { playWeaponSwing, animFamilyOf } from '../fx/weapons.js';
+import { WEAPON_BY_CLASS, ALT_WEAPON_BY_CLASS } from '../data/items.js';
+import { ensureSkillIconTextures, iconTexture, iconTint } from '../fx/skillicons.js';
 import { derivedStats } from '../data/classes.js';
 
 // classes whose capstone is party-support — their preview adds a companion
@@ -24,6 +25,7 @@ export default class CreationScene extends Phaser.Scene {
   }
 
   create() {
+    ensureSkillIconTextures(this);
     this.kindredId = null;
     this.showKindreds();
   }
@@ -185,13 +187,18 @@ export default class CreationScene extends Phaser.Scene {
     items.push(panel);
     const panelTop = height / 2 - panel.height / 2;
 
+    if (capstone?.icon) {
+      items.push(
+        this.add.image(cx, panelTop + 10, iconTexture(capstone.icon)).setDisplaySize(20, 20).setTint(iconTint(capstone)).setDepth(302)
+      );
+    }
     items.push(
-      this.add.text(cx, panelTop + 10, `${klass.name} — Ultimate: ${capstone?.name ?? ''}`, {
+      this.add.text(cx, panelTop + (capstone?.icon ? 24 : 10), `${klass.name} — Ultimate: ${capstone?.name ?? ''}`, {
         fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968',
       }).setOrigin(0.5, 0).setDepth(302)
     );
     items.push(
-      this.add.text(cx, panelTop + 32, capstone?.effect ?? '', {
+      this.add.text(cx, panelTop + (capstone?.icon ? 46 : 32), capstone?.effect ?? '', {
         fontFamily: FONTS.body, fontSize: '10px', color: COLORS.textDim, align: 'center',
         wordWrap: { width: panelW - 40 }, lineSpacing: 2,
       }).setOrigin(0.5, 0).setDepth(302)
@@ -215,9 +222,10 @@ export default class CreationScene extends Phaser.Scene {
     // loop the ultimate until the player decides — the caster swings their
     // class's own weapon and plays the strike animation, same as in-game
     let dead = false;
+    const family = animFamilyOf(WEAPON_BY_CLASS[klass.id]);
     const loop = () => {
       if (dead) return;
-      caster.play(`${kindred.sheet}-slash-down`, true);
+      caster.play(`${kindred.sheet}-${family}-down`, true);
       playWeaponSwing(this, caster, WEAPON_BY_CLASS[klass.id], 'down', { skill: true });
       caster.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
         if (!dead) caster.play(`${kindred.sheet}-idle-down`);
@@ -263,6 +271,10 @@ export default class CreationScene extends Phaser.Scene {
     state.hp = d.maxHp;
     state.mp = d.maxMp;
     state.equipment.weapon = WEAPON_BY_CLASS[klass.id] ?? null;
+    // classes with a second listed weapon (e.g. Skirmisher's "Dagger &
+    // sling") get it in the pack too, so both can be equipped and compared
+    const alt = ALT_WEAPON_BY_CLASS[klass.id];
+    if (alt) state.inventory.push(alt);
     state.potions = { hp: 9, mp: 9 };
     setState(this, state);
     this.scene.start('World');

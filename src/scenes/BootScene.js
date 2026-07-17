@@ -84,9 +84,20 @@ export default class BootScene extends Phaser.Scene {
     for (const key of CHARACTERS) {
       const walkRows = { up: ROW.walkUp, left: ROW.walkLeft, down: ROW.walkDown, right: ROW.walkRight };
       const slashRows = { up: ROW.slashUp, left: ROW.slashLeft, down: ROW.slashDown, right: ROW.slashRight };
+      const thrustRows = { up: ROW.thrustUp, left: ROW.thrustLeft, down: ROW.thrustDown, right: ROW.thrustRight };
+      const shootRows = { up: ROW.shootUp, left: ROW.shootLeft, down: ROW.shootDown, right: ROW.shootRight };
+      const spellcastRows = { up: ROW.spellcastUp, left: ROW.spellcastLeft, down: ROW.spellcastDown, right: ROW.spellcastRight };
       for (const d of DIRS) {
         mk(key, `${key}-walk-${d}`, walkRows[d], 9, 12, -1);
         mk(key, `${key}-slash-${d}`, slashRows[d], 6, 14, 0);
+        // spear-style lunge (also reused for Shield Slam's shield-bash),
+        // the bow's full draw-and-loose, and the incantation pose for
+        // staff/harp/talisman casters — same sheet, rows the game never
+        // read before now, so every weapon family gets its own real pose
+        // instead of everyone reusing the sword's slash animation
+        mk(key, `${key}-thrust-${d}`, thrustRows[d], 8, 16, 0);
+        mk(key, `${key}-shoot-${d}`, shootRows[d], 13, 15, 0);
+        mk(key, `${key}-spellcast-${d}`, spellcastRows[d], 7, 12, 0);
         if (!this.anims.exists(`${key}-idle-${d}`)) {
           this.anims.create({
             key: `${key}-idle-${d}`,

@@ -10,9 +10,10 @@ import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
-import { playWeaponSwing } from '../fx/weapons.js';
+import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin, playArrowRain, playChargedSmash, playGroundSlam, playShadowDash, playVanishFx, weaponShapeOf } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
+import { iconTint } from '../fx/skillicons.js';
 
 const SPEED = 150;
 
@@ -302,7 +303,10 @@ export default class WorldScene extends Phaser.Scene {
     this.attacking = true;
     const target = this.pickEnemyTarget(this.getAttackRangePx(false));
     if (target) this.faceToward(target); // snap toward the auto-aimed enemy
-    this.player.play(`${this.sheet}-slash-${this.facing}`, true);
+    // the body plays the pose the equipped weapon actually calls for — a
+    // bow draws and looses, a spear lunges, everything else still swings
+    const family = animFamilyOf(this.state.equipment?.weapon);
+    this.player.play(`${this.sheet}-${family}-${this.facing}`, true);
     // equipped weapon appears in hand and swings with the attack; ranged
     // shots streak straight at the target, whatever the angle
     if (this.state.equipment?.weapon)
@@ -329,7 +333,7 @@ export default class WorldScene extends Phaser.Scene {
       const def = skillDef(this.state.classId, entry.id);
       if (!def) return null;
       const ready = (this.skillCooldowns?.[entry.id] ?? 0) <= this.time.now && (this.state.mp ?? 0) >= (def.mp ?? 0);
-      return { name: def.name, ready };
+      return { name: def.name, ready, icon: def.icon, tint: iconTint(def) };
     });
     this.game.events.emit(EV.SKILLBAR, { slots });
   }
@@ -355,23 +359,65 @@ export default class WorldScene extends Phaser.Scene {
     this.skillCooldowns[id] = this.time.now + (def.cd ?? 0) * 1000;
     this.emitMp();
     this.attacking = true;
-    this.player.play(`${this.sheet}-slash-${this.facing}`, true);
-    const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
-    this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
+    // a skill is never a bare-handed shrug, even before the first weapon
+    // drop — fall back to the class's signature weapon so there's always a
+    // pose to play. Shield Slam always lunges (it's a bash, not a cut)
+    // regardless of what's actually equipped.
+    const skillWeapon = this.state.equipment?.weapon ?? WEAPON_BY_CLASS[this.state.classId];
+    const family = id === 'shield_slam' ? 'thrust' : animFamilyOf(skillWeapon);
+    this.player.play(`${this.sheet}-${family}-${this.facing}`, true);
+    // Shadow Step provides its own real dash (playShadowDash below) — the
+    // generic little forward-and-back bump would fight that tween over the
+    // same x/y properties and cancel the dash out
+    if (id !== 'shadow_step') {
+      const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
+      this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
+    }
 
-    // auto-aim first, then show the class's weapon in motion — the equipped
-    // one if carried, else the class's signature weapon (a skill is never a
-    // bare-handed shrug, even before the first weapon drop)
+    // auto-aim first, so the target is known before any weapon action or
+    // VFX needs to aim at it
     const aimed = this.pickEnemyTarget(this.getAttackRangePx(true));
     if (aimed) this.faceToward(aimed);
-    const skillWeapon = this.state.equipment?.weapon ?? WEAPON_BY_CLASS[this.state.classId];
-    if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
+    const facingOffset = { up: [0, -50], down: [0, 50], left: [-50, 0], right: [50, 0] }[this.facing];
+    const target = aimed ?? this.quest.getEnemyPos?.() ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
+
+    // the skill's weapon action — most skills just play the equipped/class
+    // weapon's normal skill motion, but several have their own distinct
+    // motion instead of reusing one generic swing/shot for everything:
+    //   Shield Slam   — a shield bashes forward, not the equipped weapon
+    //   Whirlwind     — the character (weapon in hand) spins a full circle
+    //   Quick Shot / Piercing Arrow / Disabling Shot — one shot, not a fan
+    //   Piercing Arrow — that one shot punches through, further and brighter
+    //   Volley        — an arrow rain drops on the target, not a hand-fired fan
+    //   Overcharge Strike — the hammer visibly charges before it lands
+    //   Ground Slam   — the hammer drops at the Smith's own feet (self AoE)
+    //   Shadow Step   — a real short dash with afterimages, not an attack
+    //   Vanish        — the player sprite itself fades, not just a ring FX
+    //   Quick Stab / Backstab — a single dagger jab or sling stone (Quick
+    //   Stab), a flurry/double-release (Backstab) — same read with either
+    //   weapon, since a sling swaps in for the dagger on some builds
+    if (id === 'shield_slam') playShieldBash(this, this.player, this.facing, { targetPos: aimed });
+    else if (id === 'whirlwind') playWhirlwindSpin(this, this.player, skillWeapon, this.facing);
+    else if (id === 'quick_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
+    else if (id === 'piercing_arrow') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1, pierce: true, arrowTint: 0xd8f0ff });
+    else if (id === 'disabling_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1, arrowTint: 0xe8a05a });
+    else if (id === 'multi_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, arrowTint: 0xb8e88a });
+    else if (id === 'volley') {
+      playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
+      playArrowRain(this, target);
+    } else if (id === 'overcharge_strike') playChargedSmash(this, this.player, this.facing);
+    else if (id === 'ground_slam') playGroundSlam(this, this.player);
+    else if (id === 'shadow_step') playShadowDash(this, this.player, this.facing);
+    else if (id === 'vanish') playVanishFx(this, this.player, (def.buffDuration ?? 4) * 1000);
+    else if (id === 'quick_stab') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, jabs: 1, shots: 1 });
+    else if (id === 'backstab') {
+      const isSling = weaponShapeOf(skillWeapon) === 'sling';
+      playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, ...(isSling ? { shots: 2 } : { jabs: 2 }) });
+    } else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one
-    const facingOffset = { up: [0, -50], down: [0, 50], left: [-50, 0], right: [50, 0] }[this.facing];
-    const target = aimed ?? this.quest.getEnemyPos?.() ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
-    if (def.capstone) playUltimate(this, this.state.classId, { x: this.player.x, y: this.player.y }, [], target);
+    if (def.capstone) playUltimate(this, this.state.classId, this.player, [], target, def);
     else playSkillFx(this, def, { x: this.player.x, y: this.player.y }, target, this.state.classId);
 
     // Summoner calls manifest an actual creature that follows and fights
@@ -388,7 +434,14 @@ export default class WorldScene extends Phaser.Scene {
     }
 
     const rank = rankOf(this.state, id);
-    this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));
+    // Storm of the Wild Hunt: the barrage drops three times over about a
+    // second (the attack-rate buff from playUltimate still just applies
+    // once, per its own duration) instead of resolving as a single instant hit
+    if (id === 'storm_of_the_wild_hunt') {
+      for (let i = 0; i < 3; i++) this.time.delayedCall(180 + i * 400, () => this.quest.onPlayerSkill?.(def, rank));
+    } else {
+      this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));
+    }
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.attacking = false;
     });

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ensureWeaponTextures } from './weapons.js';
+import { ensureWeaponTextures, playWeaponSwing } from './weapons.js';
 
 // Skill & ultimate visual effects — all procedural (tweens, particles,
 // graphics) over the tiny 'glow'/'px-star' textures BootScene already
@@ -208,6 +208,136 @@ export function musicNotes(scene, x, y, { count = 5, tint = '#f2d06b', delay = 0
   }
 }
 
+// Loresinger notes with a per-skill shape/color/motion, so each song reads
+// as its own attack instead of every skill flinging the same gold notes.
+// `pattern` controls the motion: rise (gentle, uplifting — buffs), burst
+// (sharp, jarring outward from the hit — Dissonant Chord), wind (streams
+// sideways — Ballad of Swiftness), jab (needling straight down — Mocking
+// Verse), heavyfall (one big slow note with weight — Dirge of Sorrow).
+export function songNotes(scene, x, y, { glyphs = ['♪'], color = '#f2d06b', pattern = 'rise', count = 6 } = {}) {
+  for (let i = 0; i < count; i++) {
+    let startX = x;
+    let startY = y;
+    let endX = x;
+    let endY = y;
+    let delay = i * 90;
+    let duration = 900;
+    let size = Phaser.Math.Between(13, 18);
+    let ease = 'Sine.easeOut';
+    if (pattern === 'burst') {
+      const a = (i / count) * Math.PI * 2;
+      endX = x + Math.cos(a) * 32;
+      endY = y + Math.sin(a) * 24;
+      delay = 0;
+      duration = 260;
+      ease = 'Quad.easeOut';
+    } else if (pattern === 'wind') {
+      startX = x - 24 - i * 12;
+      startY = y + Phaser.Math.Between(-10, 10);
+      endX = startX + 56;
+      endY = startY;
+      delay = i * 70;
+      duration = 500;
+      ease = 'Sine.easeIn';
+    } else if (pattern === 'jab') {
+      startX = x + Phaser.Math.Between(-14, 14);
+      startY = y - 28;
+      endX = startX;
+      endY = y + 2;
+      delay = i * 130;
+      duration = 200;
+      ease = 'Quad.easeIn';
+    } else if (pattern === 'heavyfall') {
+      startX = x;
+      startY = y - 64;
+      endX = x;
+      endY = y;
+      delay = 0;
+      duration = 420;
+      size = 30;
+      ease = 'Quad.easeIn';
+      count = 1;
+    } else {
+      // rise
+      startX += Phaser.Math.Between(-24, 24);
+      endX = startX + Phaser.Math.Between(-10, 10);
+      endY = y - Phaser.Math.Between(34, 58);
+    }
+    const glyph = glyphs[i % glyphs.length];
+    const txt = scene.add
+      .text(startX, startY, glyph, { fontFamily: 'serif', fontSize: `${size}px`, color, stroke: '#05060f', strokeThickness: 2 })
+      .setOrigin(0.5)
+      .setDepth(59020)
+      .setAlpha(0);
+    scene.tweens.add({
+      targets: txt,
+      delay,
+      alpha: { from: 0.95, to: 0 },
+      x: endX,
+      y: endY,
+      duration,
+      ease,
+      onComplete: () => txt.destroy(),
+    });
+    if (pattern === 'heavyfall') break; // single note, no loop
+  }
+}
+
+// Herbmaster nature textures — a leaf and a thorn, generated once, tinted
+// per skill so Athelas-named skills read as leaves and Thorned-named
+// skills read as actual thorns instead of a generic gold buff ring.
+function ensureHerbTextures(scene) {
+  const mk = (key, w, h, draw) => {
+    if (scene.textures.exists(key)) return;
+    const g = scene.make.graphics({ add: false });
+    draw(g);
+    g.generateTexture(key, w, h);
+    g.destroy();
+  };
+  mk('fx-leaf', 12, 8, (g) => {
+    g.fillStyle(0xffffff, 1);
+    g.fillEllipse(6, 4, 11, 7);
+    g.lineStyle(1, 0x1a2038, 0.4);
+    g.lineBetween(1, 4, 11, 4);
+  });
+  mk('fx-thorn', 8, 10, (g) => {
+    g.fillStyle(0xffffff, 1);
+    g.fillTriangle(4, 0, 0, 10, 8, 10);
+  });
+}
+
+function leafRise(scene, x, y, { tint = 0x7fe89a, count = 8, spread = 24 } = {}) {
+  ensureHerbTextures(scene);
+  const p = scene.add.particles(x, y, 'fx-leaf', {
+    x: { min: -spread, max: spread },
+    speedY: { min: -70, max: -25 },
+    speedX: { min: -20, max: 20 },
+    rotate: { min: -50, max: 50 },
+    lifespan: 900,
+    scale: { start: 1.2, end: 0.6 },
+    tint,
+    emitting: false,
+  });
+  p.setDepth(59000);
+  p.explode(count);
+  scene.time.delayedCall(1100, () => p.destroy());
+}
+
+function thornBurst(scene, x, y, { tint = 0x8a6a3a, count = 8 } = {}) {
+  ensureHerbTextures(scene);
+  const p = scene.add.particles(x, y, 'fx-thorn', {
+    speed: { min: 30, max: 70 },
+    lifespan: 380,
+    scale: { start: 1.1, end: 0.4 },
+    rotate: { min: 0, max: 360 },
+    tint,
+    emitting: false,
+  });
+  p.setDepth(59000);
+  p.explode(count);
+  scene.time.delayedCall(500, () => p.destroy());
+}
+
 function cracks(scene, x, y, { tint = 0xf2b06b, count = 8, length = 55, duration = 700 } = {}) {
   const g = scene.add.graphics({ x, y }).setDepth(58990).setAlpha(1);
   g.lineStyle(2, tint, 0.9);
@@ -238,10 +368,179 @@ function flashVeil(scene, { tint = 0x05060f, alpha = 0.55, duration = 260 } = {}
 
 // ---------- regular skills: one readable beat per kind ----------
 
+// Loresinger — every skill is its own song, so the notes differ in shape,
+// color, and flight pattern per skill (see songNotes' pattern doc above)
+// instead of the same gold notes flying on every cast.
+const LORESINGER_FX = {
+  note_of_courage: (scene, caster, t) => {
+    songNotes(scene, caster.x, caster.y - 14, { glyphs: ['♪', '♫'], color: '#f2d06b', pattern: 'rise', count: 6 });
+    ring(scene, t.x, t.y, { tint: TINT.buff, radius: 40 });
+    rise(scene, t.x, t.y, { tint: TINT.buff, count: 6 });
+  },
+  dissonant_chord: (scene, caster, t) => {
+    songNotes(scene, t.x, t.y, { glyphs: ['♩'], color: '#4a7fd9', pattern: 'burst', count: 8 });
+    crescent(scene, t.x, t.y, { tint: TINT.magic, rotation: Phaser.Math.FloatBetween(-0.6, 0.6) });
+  },
+  ballad_of_swiftness: (scene, caster, t) => {
+    songNotes(scene, caster.x, caster.y - 10, { glyphs: ['♫', '♬'], color: '#bfe8ff', pattern: 'wind', count: 6 });
+    ring(scene, t.x, t.y, { tint: 0xbfe8ff, radius: 40 });
+  },
+  mocking_verse: (scene, caster, t) => {
+    songNotes(scene, t.x, t.y, { glyphs: ['♩'], color: '#b07fe8', pattern: 'jab', count: 5 });
+    rain(scene, t.x, t.y - 10, { tint: TINT.debuff, count: 4 });
+  },
+  dirge_of_sorrow: (scene, caster, t) => {
+    songNotes(scene, t.x, t.y, { glyphs: ['♪'], color: '#1a2a6a', pattern: 'heavyfall' });
+    ring(scene, t.x, t.y, { tint: 0x1a2a6a, radius: 50, duration: 500 });
+    burst(scene, t.x, t.y, { tint: TINT.magic, count: 6, speed: 70 });
+  },
+};
+
+// Herbmaster — Athelas-named skills read as leaves, Thorned Ward as actual
+// thorns, Wrath of the Earth as cracked brown-green ground (not a generic
+// blue magic burst) — the name/description dictates the shape, not just
+// the skill's mechanical kind.
+const HERBMASTER_FX = {
+  athelas_touch: (scene, caster, t) => {
+    leafRise(scene, t.x, t.y, { tint: 0x7fe89a, count: 8 });
+    pillar(scene, t.x, t.y + 12, { tint: TINT.heal, h: 60 });
+  },
+  regrowth: (scene, caster, t) => {
+    ring(scene, t.x, t.y, { tint: 0x5ac26a, radius: 28, duration: 500 });
+    leafRise(scene, t.x, t.y, { tint: 0x5ac26a, count: 6, spread: 16 });
+  },
+  thorned_ward: (scene, caster, t) => {
+    ring(scene, t.x, t.y, { tint: 0x6a8f4a, radius: 32 });
+    thornBurst(scene, t.x, t.y, { tint: 0x8a6a3a, count: 10 });
+  },
+  wrath_of_the_earth: (scene, caster, t) => {
+    cracks(scene, t.x, t.y, { tint: 0x8a9a5a, length: 34, duration: 500 });
+    burst(scene, t.x, t.y, { tint: 0x9a7a4a, count: 10, speed: 80 });
+  },
+};
+
+// Smith — a precise strike reads as white metal sparks (not the
+// purple-magic debuff burst every other class's debuffs use), and Forge
+// Blessing shows the actual hammer-tap enchant running down the weapon.
+const SMITH_FX = {
+  sunder_armor: (scene, caster, t) => {
+    burst(scene, t.x, t.y, { tint: 0xe8e8f0, count: 7, speed: 70, scale: 0.22 });
+    crescent(scene, t.x, t.y, { tint: 0xe8e8f0, radius: 16, duration: 180 });
+  },
+  forge_blessing: (scene, caster) => {
+    const shimmer = scene.add.rectangle(caster.x, caster.y - 24, 3, 0, 0xf2d06b, 0.9).setOrigin(0.5, 0).setDepth(caster.y + 1).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({ targets: shimmer, height: 30, alpha: { from: 0.9, to: 0 }, duration: 420, ease: 'Sine.easeOut', onComplete: () => shimmer.destroy() });
+    burst(scene, caster.x, caster.y - 10, { tint: TINT.buff, count: 8, speed: 60 });
+  },
+};
+
+// Skirmisher — Backstab fakes an off-angle flash since "from behind" isn't
+// positionally tracked; Caltrops scatters real ground spikes (reusing the
+// thorn texture — a spike is a spike) instead of the blood-red slash mark
+// every other DoT uses. Shadow Step and Vanish are fully handled by
+// WorldScene's playShadowDash/playVanishFx (real repositioning / real
+// transparency), so they're suppressed here to avoid a mismatched second
+// effect layered on top.
+const SKIRMISHER_FX = {
+  backstab: (scene, caster, t) => {
+    const baseAng = Math.atan2(t.y - caster.y, t.x - caster.x);
+    const off = (Phaser.Math.Between(0, 1) ? 1 : -1) * Phaser.Math.FloatBetween(0.9, 1.4);
+    const sx = t.x - Math.cos(baseAng + off) * 46;
+    const sy = t.y - Math.sin(baseAng + off) * 30;
+    streak(scene, sx, sy, t.x, t.y, { tint: 0xc8c8e8, duration: 140, thickness: 4, length: 26 });
+    crescent(scene, t.x, t.y, { tint: TINT.phys, rotation: off });
+    burst(scene, t.x, t.y, { tint: TINT.phys, count: 6, speed: 90 });
+  },
+  caltrops: (scene, caster, t) => {
+    ensureHerbTextures(scene);
+    for (let i = 0; i < 8; i++) {
+      const ox = t.x + Phaser.Math.Between(-30, 30);
+      const oy = t.y + Phaser.Math.Between(-18, 18);
+      const spike = scene.add.image(ox, oy, 'fx-thorn').setTint(0x8a93a6).setScale(0).setAngle(Phaser.Math.Between(-15, 15)).setDepth(t.y - 1);
+      scene.tweens.add({ targets: spike, scale: 1.3, delay: i * 30, duration: 160, ease: 'Back.easeOut' });
+      scene.tweens.add({ targets: spike, alpha: 0, delay: 900 + i * 30, duration: 300, onComplete: () => spike.destroy() });
+    }
+  },
+  shadow_step: () => {},
+  vanish: () => {},
+};
+
+// Captain — several of these are self-centered ("the whole party" reads
+// from the Captain outward, no range limit) rather than something that
+// should appear parked on an enemy the way single-target skills do.
+const CAPTAIN_FX = {
+  rallying_strike: (scene, caster, t) => {
+    crescent(scene, t.x, t.y, { tint: TINT.phys, rotation: Phaser.Math.FloatBetween(-0.6, 0.6) });
+    burst(scene, t.x, t.y, { tint: TINT.phys, count: 8 });
+    ring(scene, caster.x, caster.y, { tint: TINT.buff, radius: 26, duration: 300 }); // the voice carrying outward
+  },
+  battle_cry: (scene, caster) => {
+    // a shout ripples outward from the Captain, not a ring parked on an enemy
+    for (let i = 0; i < 3; i++) ring(scene, caster.x, caster.y, { tint: TINT.buff, radius: 40 + i * 22, duration: 500, delay: i * 120 });
+    burst(scene, caster.x, caster.y - 10, { tint: TINT.buff, count: 10, speed: 90 });
+  },
+  banner_plant: (scene, caster) => {
+    // an actual banner, planted at the Captain's own feet — not a generic ring
+    const growth = { h: 1 };
+    const pole = scene.add.rectangle(caster.x, caster.y + 6, 3, 1, 0x6b4a2a, 1).setOrigin(0.5, 1).setDepth(caster.y + 1);
+    const flag = scene.add.triangle(caster.x + 2, caster.y - 20, 0, 0, 13, 4, 0, 8, 0xd9b968, 0.95).setDepth(caster.y + 1).setAlpha(0);
+    scene.tweens.add({ targets: growth, h: 28, duration: 260, ease: 'Back.easeOut', onUpdate: () => pole.setSize(3, growth.h) });
+    scene.tweens.add({ targets: flag, alpha: 1, duration: 200, delay: 200 });
+    ring(scene, caster.x, caster.y, { tint: TINT.buff, radius: 44, duration: 500, delay: 260 });
+    scene.time.delayedCall(2600, () => {
+      scene.tweens.add({ targets: [pole, flag], alpha: 0, duration: 400, onComplete: () => { pole.destroy(); flag.destroy(); } });
+    });
+  },
+  inspiring_shout: (scene, caster, t) => {
+    // a warm gold wave — not the green nature-heal tone every other heal uses
+    pillar(scene, t.x, t.y + 12, { tint: TINT.gold, h: 70 });
+    rise(scene, t.x, t.y, { tint: TINT.gold });
+  },
+  flanking_order: (scene, caster, t) => {
+    // "the party visibly tightens formation" — a ring contracting inward,
+    // not the usual expanding buff ring
+    const c = scene.add.circle(t.x, t.y, 60).setStrokeStyle(3, TINT.buff, 0.9).setDepth(59000).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({
+      targets: c,
+      radius: 14,
+      alpha: 0,
+      duration: 420,
+      ease: 'Sine.easeIn',
+      onUpdate: () => c.setStrokeStyle(3, TINT.buff, c.alpha),
+      onComplete: () => c.destroy(),
+    });
+    rise(scene, t.x, t.y, { tint: TINT.buff, count: 8 });
+  },
+};
+
+// Summoner — each Call skill's summoning circle is tinted to match the
+// creature it's about to bring out (same palette as Call of the Wild's
+// ultimate), instead of one generic blue magic-circle for all five.
+const SUMMON_TINT = {
+  call_bird: 0xf0f0ff,
+  call_spirit: 0x8ae8e8,
+  call_great_eagle: 0xf2d06b,
+  call_ent: 0x8ae89a,
+  call_beorning: 0xd9a06b,
+};
+const SUMMONER_FX = Object.fromEntries(
+  Object.entries(SUMMON_TINT).map(([id, tint]) => [
+    id,
+    (scene, caster) => {
+      magicCircle(scene, caster.x, caster.y + 8, { tint, radius: 30 });
+      burst(scene, caster.x, caster.y, { tint, count: 8 });
+    },
+  ])
+);
+
 export function playSkillFx(scene, def, caster, target, classId = null) {
   const t = target ?? caster;
-  // every Loresinger skill is a song — notes fly on all of them
-  if (classId === 'loresinger') musicNotes(scene, caster.x, caster.y - 14, { count: 4 });
+  if (classId === 'loresinger' && LORESINGER_FX[def.id]) return LORESINGER_FX[def.id](scene, caster, t);
+  if (classId === 'herbmaster' && HERBMASTER_FX[def.id]) return HERBMASTER_FX[def.id](scene, caster, t);
+  if (classId === 'captain' && CAPTAIN_FX[def.id]) return CAPTAIN_FX[def.id](scene, caster, t);
+  if (classId === 'summoner' && SUMMONER_FX[def.id]) return SUMMONER_FX[def.id](scene, caster, t);
+  if (classId === 'smith' && SMITH_FX[def.id]) return SMITH_FX[def.id](scene, caster, t);
+  if (classId === 'skirmisher' && SKIRMISHER_FX[def.id]) return SKIRMISHER_FX[def.id](scene, caster, t);
   switch (def.kind) {
     case 'heal':
     case 'hot':
@@ -280,10 +579,50 @@ export function playSkillFx(scene, def, caster, target, classId = null) {
   }
 }
 
+// ---------- long-buff capstones: keep performing for the buff's real
+// duration, not just a one-shot flourish ----------
+// Anthem of Valinor and Athelas Bloom hold a buff for many seconds — the
+// Loresinger should still be visibly playing the harp with notes drifting
+// out the whole time, and the Herbmaster's staff should stay raised and
+// pulsing, not freeze after one 2.4s beat. Only runs against the real
+// player sprite in live play (`caster.play` exists) — the class-selection
+// preview loops the whole ultimate externally already, so it's skipped
+// there (no `def` is passed in that call site).
+function sustainLoresingerSong(scene, caster, def) {
+  if (typeof caster.play !== 'function') return;
+  const durationMs = (def.buffDuration ?? 12) * 1000;
+  const beatMs = 1100;
+  const beats = Math.max(0, Math.floor((durationMs - 500) / beatMs));
+  for (let i = 1; i <= beats; i++) {
+    scene.time.delayedCall(i * beatMs, () => {
+      if (!caster.active) return;
+      playWeaponSwing(scene, caster, 'travelers_harp', 'down', { skill: false });
+      musicNotes(scene, caster.x, caster.y - 14, { count: 3, spread: 26 });
+    });
+  }
+}
+
+function sustainHerbmasterStaff(scene, caster, def) {
+  if (typeof caster.play !== 'function') return;
+  const durationMs = (def.buffDuration ?? 10) * 1000;
+  const beatMs = 1500;
+  const beats = Math.max(0, Math.floor((durationMs - 500) / beatMs));
+  for (let i = 1; i <= beats; i++) {
+    scene.time.delayedCall(i * beatMs, () => {
+      if (!caster.active) return;
+      playWeaponSwing(scene, caster, 'woodland_staff', 'down', { skill: false });
+      leafRise(scene, caster.x, caster.y, { tint: 0x7fe89a, count: 3, spread: 16 });
+    });
+  }
+}
+
 // ---------- capstones: one epic multi-beat sequence per class ----------
 // Returns the sequence's rough duration (ms) so callers can loop previews.
+// `def` (optional) is the skill definition — when present (live gameplay,
+// not the class-selection preview), long-buff capstones keep performing
+// for def.buffDuration instead of stopping after the initial flourish.
 
-export function playUltimate(scene, classId, caster, allies = [], target = null) {
+export function playUltimate(scene, classId, caster, allies = [], target = null, def = null) {
   const t = target ?? { x: caster.x + 70, y: caster.y };
   const everyone = [caster, ...allies];
   switch (classId) {
@@ -298,17 +637,24 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
       return 2200;
     }
     case 'ranger': {
-      // Storm of the Wild Hunt — the sky answers with arrows
+      // Storm of the Wild Hunt — the sky answers with arrows in three
+      // distinct volleys over about a second, matching the three real hits
+      // the barrage now lands (WorldScene.onSkillPressed), not one big
+      // simultaneous drop
       ring(scene, caster.x, caster.y, { tint: 0x9ae8b4, radius: 60, duration: 400 });
-      for (let i = 0; i < 16; i++) {
-        const dx = Phaser.Math.Between(-80, 80);
-        streak(scene, t.x + dx + 60, t.y - 130, t.x + dx, t.y + Phaser.Math.Between(-30, 30), {
-          tint: 0xd8f0c8,
-          duration: 240,
-          delay: 250 + i * 70,
-          length: 30,
-        });
-      }
+      const waveDelays = [180, 580, 980];
+      waveDelays.forEach((waveDelay) => {
+        for (let i = 0; i < 6; i++) {
+          const dx = Phaser.Math.Between(-80, 80);
+          streak(scene, t.x + dx + 60, t.y - 130, t.x + dx, t.y + Phaser.Math.Between(-30, 30), {
+            tint: 0xd8f0c8,
+            duration: 220,
+            delay: waveDelay + i * 30,
+            length: 30,
+          });
+        }
+        scene.time.delayedCall(waveDelay + 160, () => ring(scene, t.x, t.y, { tint: 0x9ae8b4, radius: 60, duration: 350 }));
+      });
       ring(scene, t.x, t.y, { tint: 0x9ae8b4, radius: 110, duration: 700, delay: 1500 });
       return 2400;
     }
@@ -323,6 +669,7 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
         musicNotes(scene, m.x, m.y - 16, { count: 4, delay: 600 + i * 160 });
       });
       burst(scene, caster.x, caster.y - 60, { tint: 0xfff2c8, count: 16, speed: 110 });
+      if (def) sustainLoresingerSong(scene, caster, def);
       return 2400;
     }
     case 'herbmaster': {
@@ -343,6 +690,7 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
         rise(scene, m.x, m.y, { tint: 0xc8f0d0, count: 14, lifespan: 1200 });
       });
       ring(scene, caster.x, caster.y, { tint: TINT.heal, radius: 120, duration: 900, delay: 700 });
+      if (def) sustainHerbmasterStaff(scene, caster, def);
       return 2400;
     }
     case 'smith': {
@@ -385,10 +733,15 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
     }
     case 'captain': {
       // War Horn's Call — the horn sounds, and the Guard answers, STAYS,
-      // and fights: 2 swordsmen + 2 archers hold formation for ~5s, each
-      // striking at the target repeatedly before the light releases them
+      // and fights: 2 swordsmen + 2 archers march out to the enemies and
+      // hold there for ~5s, each striking repeatedly before the light
+      // releases them. With several enemies present they spread out and
+      // split up the work instead of dog-piling one target; with only one
+      // enemy, all four naturally converge on it. They never yo-yo back to
+      // formation — once released, they're loose and stay engaged.
       ensureWeaponTextures(scene);
       for (let i = 0; i < 3; i++) ring(scene, caster.x, caster.y - 10, { tint: 0xf2d06b, radius: 70 + i * 25, duration: 500, delay: i * 160 });
+      const enemies = scene.quest?.getEnemies?.() ?? (t ? [t] : []);
       const spots = [
         [-46, -20],
         [46, -20],
@@ -403,19 +756,32 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
         const wpn = scene.add.image(gx + 9, gy + 2, `fxw-${weaponKey}`).setTint(0xd8e8ff).setAlpha(0).setDepth(59001).setRotation(0.5);
         const parts = [spr, wpn];
         scene.tweens.add({ targets: parts, delay: 450 + i * 130, alpha: 0.9, duration: 300 });
-        // each guardsman lunges at the target twice, swinging, then returns
-        for (let strike = 0; strike < 2; strike++) {
-          scene.time.delayedCall(1300 + i * 350 + strike * 1600, () => {
+        const myTarget = enemies.length ? enemies[i % enemies.length] : t;
+        if (!myTarget) return;
+        // march out once and take up a spot near their assigned enemy —
+        // no return trip to formation afterward
+        const postX = myTarget.x + (i % 2 === 0 ? -16 : 16);
+        const postY = myTarget.y + 8;
+        scene.time.delayedCall(900 + i * 150, () => {
+          if (!spr.active) return;
+          spr.play('npc_elf_hunter-walk-right', true);
+          scene.tweens.add({ targets: parts, x: postX, y: postY, duration: 420, ease: 'Quad.easeOut' });
+        });
+        // repeated strikes from wherever they're now standing
+        for (let strike = 0; strike < 3; strike++) {
+          scene.time.delayedCall(1500 + i * 150 + strike * 1300, () => {
             if (!spr.active) return;
-            spr.play(`npc_elf_hunter-slash-right`, true);
+            spr.play('npc_elf_hunter-slash-right', true);
+            const bx = spr.x;
+            const by = spr.y;
             scene.tweens.add({
               targets: parts,
-              x: `+=${(t.x - spr.x) * 0.55}`,
-              y: `+=${(t.y - spr.y) * 0.55}`,
-              duration: 240,
+              x: `+=${(myTarget.x - bx) * 0.35}`,
+              y: `+=${(myTarget.y - by) * 0.35}`,
+              duration: 180,
               ease: 'Quad.easeIn',
               yoyo: true,
-              onYoyo: () => burst(scene, t.x, t.y, { tint: 0xd8e8ff, count: 5, speed: 70, lifespan: 300, scale: 0.22 }),
+              onYoyo: () => burst(scene, myTarget.x, myTarget.y, { tint: 0xd8e8ff, count: 5, speed: 70, lifespan: 300, scale: 0.22 }),
             });
           });
         }

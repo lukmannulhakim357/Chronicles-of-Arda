@@ -8,6 +8,7 @@ import { effectiveStats } from '../systems/GameState.js';
 import { derivedStats } from '../data/classes.js';
 import { createCombatant, isAlive, liveStats, damage as dealDamage } from '../combat/combatant.js';
 import { computeDamage } from '../combat/formulas.js';
+import { SUMMON_POWER } from '../fx/summons.js';
 
 // Quest 3 — "Lost Before Nightfall" (waypoint 3, The Great Forest).
 //   0  speak with Randir at the forest's edge
@@ -341,8 +342,8 @@ export default class LostBeforeNightfallQuest {
 
   // summon dives resolve as light Magic hits (summon damage is always
   // Magic-typed per the skill doc §4.8.0 — never misses, modest per-hit)
-  onSummonHit() {
-    this.strikeWolf({ skillPct: 0.55, isMagic: true, critMult: 2, skipRange: true });
+  onSummonHit(form) {
+    this.strikeWolf({ skillPct: SUMMON_POWER[form] ?? 0.55, isMagic: true, critMult: 2, skipRange: true });
   }
 
   strikeWolf({ skillPct, isMagic, critMult, rank = 1, skipRange = false, isSkill = false }) {

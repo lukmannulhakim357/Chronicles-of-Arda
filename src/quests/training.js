@@ -4,6 +4,7 @@ import { tilesToPx, POINTS } from '../world/training.js';
 import { effectiveStats } from '../systems/GameState.js';
 import { derivedStats } from '../data/classes.js';
 import { computeDamage } from '../combat/formulas.js';
+import { SUMMON_POWER } from '../fx/summons.js';
 
 // The Training Grounds "quest" — no story, no saves (state.training guards
 // SaveSystem). One straw dummy that soaks every hit and never loses HP, so
@@ -74,8 +75,8 @@ export default class TrainingQuest {
     this.hitDummy({ skillPct: def.damagePct ?? 1.4, isMagic: !!def.isMagic, critMult: def.critMult ?? 2, rank, isSkill: true });
   }
 
-  onSummonHit() {
-    this.hitDummy({ skillPct: 0.55, isMagic: true, critMult: 2, skipRange: true });
+  onSummonHit(form) {
+    this.hitDummy({ skillPct: SUMMON_POWER[form] ?? 0.55, isMagic: true, critMult: 2, skipRange: true });
   }
 
   hitDummy({ skillPct, isMagic, critMult, rank = 1, skipRange = false, isSkill = false }) {

@@ -16,6 +16,7 @@ import {
   spentSkillPoints,
   learnedActives,
 } from '../data/skills.js';
+import { ensureSkillIconTextures, iconTexture, iconTint } from '../fx/skillicons.js';
 
 // Launched on top of a paused World (+ paused UI) from the pause menu, or
 // straight into a scripted tutorial moment (level-up, first gear reward).
@@ -87,6 +88,7 @@ export default class CharacterScene extends Phaser.Scene {
   }
 
   create() {
+    ensureSkillIconTextures(this);
     this.state = getState(this);
     // defensive defaults for characters saved before these systems existed
     this.state.inventory ??= [];
@@ -99,6 +101,7 @@ export default class CharacterScene extends Phaser.Scene {
     this.state.seenCards ??= [];
     this.pending = { VIT: 0, MAG: 0, STR: 0, DEX: 0 };
     this.inspect = null;
+    this.inspectSkill = null;
     this.viewingCard = null;
     this.build();
     this.resizeHandler = () => this.build();
@@ -163,6 +166,7 @@ export default class CharacterScene extends Phaser.Scene {
       this.tab = key;
       this.pending = { VIT: 0, MAG: 0, STR: 0, DEX: 0 };
       this.inspect = null;
+      this.inspectSkill = null;
       this.viewingCard = null;
       this.build();
     });
@@ -498,12 +502,13 @@ export default class CharacterScene extends Phaser.Scene {
     const tree = getTree(classId);
     const spent = spentSkillPoints(this.state, classId);
     const banked = this.state.skillPoints ?? 0;
+    const wheelFilled = learnedActives(this.state, classId).length;
 
     this.add
       .text(cx, top, `${klass?.name ?? 'Class'} Skill Tree`, { fontFamily: FONTS.body, fontSize: '13px', color: '#d9b968' })
       .setOrigin(0.5, 0);
     this.add
-      .text(cx, top + 15, `${spent}/${MAX_TREE_POINTS} points spent  •  ${banked} banked`, {
+      .text(cx, top + 15, `${spent}/${MAX_TREE_POINTS} spent  •  ${banked} banked  •  wheel ${wheelFilled}/6 filled`, {
         fontFamily: FONTS.body,
         fontSize: '10px',
         color: COLORS.textDim,
@@ -511,28 +516,39 @@ export default class CharacterScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
 
     const rowTop = top + 30;
-    const rowH = 27;
+    const rowH = 22;
     const rowW = Math.min(600, width - 24);
     tree.forEach((def, i) => {
-      const y = rowTop + i * (rowH + 3) + rowH / 2;
+      const y = rowTop + i * (rowH + 2) + rowH / 2;
       this.buildSkillRow(classId, def, cx, y, rowW, rowH);
     });
 
-    const barTop = rowTop + tree.length * (rowH + 3) + 8;
-    this.renderActionBar(classId, cx, rowW, barTop);
+    const detailTop = rowTop + tree.length * (rowH + 2) + 6;
+    this.renderSkillDetail(classId, cx, rowW, detailTop);
   }
 
   buildSkillRow(classId, def, cx, y, w, h) {
     const rank = rankOf(this.state, def.id);
     const unlocked = isUnlocked(this.state, classId, def.id);
-    this.add.rectangle(cx, y, w, h, COLORS.panel, unlocked ? 0.92 : 0.55).setStrokeStyle(1, COLORS.panelLine);
+    const selected = this.inspectSkill?.skillId === def.id;
+    const row = this.add
+      .rectangle(cx, y, w, h, COLORS.panel, unlocked ? 0.92 : 0.55)
+      .setStrokeStyle(selected ? 2 : 1, selected ? 0xffffff : COLORS.panelLine);
+    row.setInteractive({ useHandCursor: true });
+    row.on('pointerup', () => {
+      this.inspectSkill = { classId, skillId: def.id };
+      this.build();
+    });
 
     const typeTag = def.capstone ? 'CAP' : def.type === 'active' ? 'A' : 'P';
     this.add
       .text(cx - w / 2 + 8, y, typeTag, { fontFamily: FONTS.body, fontSize: '9px', color: '#6a8fd9' })
       .setOrigin(0, 0.5);
+    if (def.icon) {
+      this.add.image(cx - w / 2 + 30, y, iconTexture(def.icon)).setDisplaySize(15, 15).setTint(iconTint(def)).setAlpha(unlocked ? 1 : 0.4);
+    }
     this.add
-      .text(cx - w / 2 + 30, y, def.name, {
+      .text(cx - w / 2 + 42, y, def.name, {
         fontFamily: FONTS.body,
         fontSize: '11px',
         color: unlocked ? '#e8e4d8' : '#5a6a88',
@@ -563,20 +579,46 @@ export default class CharacterScene extends Phaser.Scene {
     });
   }
 
-  // The HUD skill wheel auto-fills with every learned Active (6 slots) plus
-  // HP/MP potions — no manual loadout to manage, so this is just the note.
-  renderActionBar(classId, cx, w, top) {
-    const n = learnedActives(this.state, classId).length;
+  // Tap a row above to inspect it here: icon, rank, MP/cast/cooldown, and
+  // the full description (attack shape, visual, damage/heal %, effects,
+  // duration) — mirrors the Gear tab's tap-to-inspect detail panel.
+  renderSkillDetail(classId, cx, w, top) {
+    const h = 100;
+    this.add.rectangle(cx, top + h / 2, w, h, COLORS.panel, 0.9).setStrokeStyle(2, COLORS.panelLine);
+    const def = this.inspectSkill?.classId === classId ? getTree(classId).find((s) => s.id === this.inspectSkill.skillId) : null;
+    const x0 = cx - w / 2 + 10;
+    if (!def) {
+      this.add
+        .text(cx, top + h / 2, 'Tap a skill above to see its full description.', {
+          fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim, align: 'center', wordWrap: { width: w - 20 },
+        })
+        .setOrigin(0.5);
+      return h;
+    }
+    if (def.icon) {
+      this.add.image(x0 + 14, top + 20, iconTexture(def.icon)).setDisplaySize(26, 26).setTint(iconTint(def));
+    }
+    this.add.text(x0 + 32, top + 8, def.name, { fontFamily: FONTS.body, fontSize: '12px', color: '#e8e4d8' }).setOrigin(0, 0);
+    const rank = rankOf(this.state, def.id);
+    const statLine = def.type === 'passive'
+      ? 'Passive — always active'
+      : [
+          `Rank ${rank}/${def.maxRank}`,
+          def.mp ? `${def.mp} MP` : null,
+          def.cast ? `${def.cast}s cast` : null,
+          def.cd ? `${def.cd}s cooldown` : null,
+        ].filter(Boolean).join('  •  ');
+    this.add.text(x0 + 32, top + 23, statLine, { fontFamily: FONTS.body, fontSize: '9px', color: '#d9b968' }).setOrigin(0, 0);
     this.add
-      .text(cx, top + 4, `Skill wheel: ${n}/6 skill slot${n === 1 ? '' : 's'} filled + HP/MP potions — rotate it in the HUD with ⟳.`, {
+      .text(x0, top + 38, def.effect ?? '', {
         fontFamily: FONTS.body,
-        fontSize: '10px',
+        fontSize: '9px',
         color: COLORS.textDim,
-        fontStyle: 'italic',
-        align: 'center',
         wordWrap: { width: w - 20 },
+        lineSpacing: 2,
       })
-      .setOrigin(0.5, 0);
+      .setOrigin(0, 0);
+    return h;
   }
 
   // ---------- Titles tab (stub) ----------
