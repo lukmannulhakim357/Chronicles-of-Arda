@@ -10,7 +10,7 @@ import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
-import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin, playArrowRain } from '../fx/weapons.js';
+import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin, playArrowRain, playChargedSmash, playGroundSlam, playShadowDash, playVanishFx } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 import { iconTint } from '../fx/skillicons.js';
@@ -366,8 +366,13 @@ export default class WorldScene extends Phaser.Scene {
     const skillWeapon = this.state.equipment?.weapon ?? WEAPON_BY_CLASS[this.state.classId];
     const family = id === 'shield_slam' ? 'thrust' : animFamilyOf(skillWeapon);
     this.player.play(`${this.sheet}-${family}-${this.facing}`, true);
-    const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
-    this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
+    // Shadow Step provides its own real dash (playShadowDash below) — the
+    // generic little forward-and-back bump would fight that tween over the
+    // same x/y properties and cancel the dash out
+    if (id !== 'shadow_step') {
+      const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
+      this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
+    }
 
     // auto-aim first, so the target is known before any weapon action or
     // VFX needs to aim at it
@@ -384,6 +389,10 @@ export default class WorldScene extends Phaser.Scene {
     //   Quick Shot / Piercing Arrow / Disabling Shot — one shot, not a fan
     //   Piercing Arrow — that one shot punches through, further and brighter
     //   Volley        — an arrow rain drops on the target, not a hand-fired fan
+    //   Overcharge Strike — the hammer visibly charges before it lands
+    //   Ground Slam   — the hammer drops at the Smith's own feet (self AoE)
+    //   Shadow Step   — a real short dash with afterimages, not an attack
+    //   Vanish        — the player sprite itself fades, not just a ring FX
     if (id === 'shield_slam') playShieldBash(this, this.player, this.facing, { targetPos: aimed });
     else if (id === 'whirlwind') playWhirlwindSpin(this, this.player, skillWeapon, this.facing);
     else if (id === 'quick_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
@@ -393,7 +402,11 @@ export default class WorldScene extends Phaser.Scene {
     else if (id === 'volley') {
       playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
       playArrowRain(this, target);
-    } else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
+    } else if (id === 'overcharge_strike') playChargedSmash(this, this.player, this.facing);
+    else if (id === 'ground_slam') playGroundSlam(this, this.player);
+    else if (id === 'shadow_step') playShadowDash(this, this.player, this.facing);
+    else if (id === 'vanish') playVanishFx(this, this.player, (def.buffDuration ?? 4) * 1000);
+    else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one

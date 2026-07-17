@@ -419,10 +419,58 @@ const HERBMASTER_FX = {
   },
 };
 
+// Smith — a precise strike reads as white metal sparks (not the
+// purple-magic debuff burst every other class's debuffs use), and Forge
+// Blessing shows the actual hammer-tap enchant running down the weapon.
+const SMITH_FX = {
+  sunder_armor: (scene, caster, t) => {
+    burst(scene, t.x, t.y, { tint: 0xe8e8f0, count: 7, speed: 70, scale: 0.22 });
+    crescent(scene, t.x, t.y, { tint: 0xe8e8f0, radius: 16, duration: 180 });
+  },
+  forge_blessing: (scene, caster) => {
+    const shimmer = scene.add.rectangle(caster.x, caster.y - 24, 3, 0, 0xf2d06b, 0.9).setOrigin(0.5, 0).setDepth(caster.y + 1).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({ targets: shimmer, height: 30, alpha: { from: 0.9, to: 0 }, duration: 420, ease: 'Sine.easeOut', onComplete: () => shimmer.destroy() });
+    burst(scene, caster.x, caster.y - 10, { tint: TINT.buff, count: 8, speed: 60 });
+  },
+};
+
+// Skirmisher — Backstab fakes an off-angle flash since "from behind" isn't
+// positionally tracked; Caltrops scatters real ground spikes (reusing the
+// thorn texture — a spike is a spike) instead of the blood-red slash mark
+// every other DoT uses. Shadow Step and Vanish are fully handled by
+// WorldScene's playShadowDash/playVanishFx (real repositioning / real
+// transparency), so they're suppressed here to avoid a mismatched second
+// effect layered on top.
+const SKIRMISHER_FX = {
+  backstab: (scene, caster, t) => {
+    const baseAng = Math.atan2(t.y - caster.y, t.x - caster.x);
+    const off = (Phaser.Math.Between(0, 1) ? 1 : -1) * Phaser.Math.FloatBetween(0.9, 1.4);
+    const sx = t.x - Math.cos(baseAng + off) * 46;
+    const sy = t.y - Math.sin(baseAng + off) * 30;
+    streak(scene, sx, sy, t.x, t.y, { tint: 0xc8c8e8, duration: 140, thickness: 4, length: 26 });
+    crescent(scene, t.x, t.y, { tint: TINT.phys, rotation: off });
+    burst(scene, t.x, t.y, { tint: TINT.phys, count: 6, speed: 90 });
+  },
+  caltrops: (scene, caster, t) => {
+    ensureHerbTextures(scene);
+    for (let i = 0; i < 8; i++) {
+      const ox = t.x + Phaser.Math.Between(-30, 30);
+      const oy = t.y + Phaser.Math.Between(-18, 18);
+      const spike = scene.add.image(ox, oy, 'fx-thorn').setTint(0x8a93a6).setScale(0).setAngle(Phaser.Math.Between(-15, 15)).setDepth(t.y - 1);
+      scene.tweens.add({ targets: spike, scale: 1.3, delay: i * 30, duration: 160, ease: 'Back.easeOut' });
+      scene.tweens.add({ targets: spike, alpha: 0, delay: 900 + i * 30, duration: 300, onComplete: () => spike.destroy() });
+    }
+  },
+  shadow_step: () => {},
+  vanish: () => {},
+};
+
 export function playSkillFx(scene, def, caster, target, classId = null) {
   const t = target ?? caster;
   if (classId === 'loresinger' && LORESINGER_FX[def.id]) return LORESINGER_FX[def.id](scene, caster, t);
   if (classId === 'herbmaster' && HERBMASTER_FX[def.id]) return HERBMASTER_FX[def.id](scene, caster, t);
+  if (classId === 'smith' && SMITH_FX[def.id]) return SMITH_FX[def.id](scene, caster, t);
+  if (classId === 'skirmisher' && SKIRMISHER_FX[def.id]) return SKIRMISHER_FX[def.id](scene, caster, t);
   switch (def.kind) {
     case 'heal':
     case 'hot':

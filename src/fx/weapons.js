@@ -273,7 +273,7 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
     aim = { dx: Math.cos(ang), dy: Math.sin(ang), dist: Phaser.Math.Distance.Between(x, y, targetPos.x, targetPos.y) };
   }
 
-  if (shape === 'sword' || shape === 'dagger' || shape === 'hammer' || shape === 'horn') {
+  if (shape === 'sword' || shape === 'horn') {
     img.rotation = dir * -1.3;
     scene.tweens.add({
       targets: img,
@@ -297,6 +297,50 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
         onComplete: () => img2.destroy(),
       });
     }
+  } else if (shape === 'dagger') {
+    // a quick stab straight down the aim line — every Skirmisher skill
+    // (Quick Stab, Backstab, Assassinate) describes a jab, not a sword arc
+    img.rotation = Math.atan2(aim.dy, aim.dx) + Math.PI / 2;
+    scene.tweens.add({
+      targets: img,
+      x: x + aim.dx * (skill ? 20 : 14),
+      y: y + aim.dy * (skill ? 20 : 14),
+      duration: skill ? 130 : 100,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 90, onComplete: () => img.destroy() }),
+    });
+    if (skill) {
+      // a second, faster stab — Backstab reads as a flurry, not one poke
+      const img2 = spawnWeapon(scene, player, shape, hand, true);
+      img2.setAlpha(0);
+      img2.rotation = img.rotation;
+      scene.tweens.add({
+        targets: img2,
+        delay: 140,
+        alpha: { from: 0.9, to: 0 },
+        x: img2.x + aim.dx * 26,
+        y: img2.y + aim.dy * 26,
+        duration: 160,
+        ease: 'Quad.easeOut',
+        onComplete: () => img2.destroy(),
+      });
+    }
+  } else if (shape === 'hammer') {
+    // an overhead smash, not a side-arc — the hammer winds up behind the
+    // shoulder then comes down hard, with impact dust where it lands
+    img.rotation = dir * -0.5;
+    scene.tweens.add({
+      targets: img,
+      rotation: dir * 1.7,
+      duration: skill ? 280 : 210,
+      ease: 'Back.easeIn',
+      onComplete: () => {
+        const dust = scene.add.circle(img.x, img.y, 4, 0x8a7a5a, 0.8).setDepth(img.depth);
+        scene.tweens.add({ targets: dust, radius: 20, alpha: 0, duration: 220, onComplete: () => dust.destroy() });
+        scene.tweens.add({ targets: img, alpha: 0, duration: 90, onComplete: () => img.destroy() });
+      },
+    });
   } else if (shape === 'spear') {
     // a straight thrust down the aim line, not an arc — the texture's tip
     // points "up" at rotation 0, so it has to turn to actually face the aim
@@ -533,5 +577,121 @@ export function playWhirlwindSpin(scene, player, itemId, facing) {
     ease: 'Sine.easeOut',
     onUpdate: () => ring.setStrokeStyle(3, 0xd9d9e8, ring.alpha),
     onComplete: () => ring.destroy(),
+  });
+}
+
+// Overcharge Strike — "the hammer-head glows faintly with stored force
+// before it lands": a visible charge-up beat before the overhead smash,
+// distinguishing it from Hammer Strike's plain quick swing.
+export function playChargedSmash(scene, player, facing) {
+  ensureWeaponTextures(scene);
+  const hand = HAND_SLASH[facing] ?? HAND_SLASH.down;
+  const img = spawnWeapon(scene, player, 'hammer', hand, true);
+  const dir = hand.flip ? -1 : 1;
+  img.rotation = dir * -0.5;
+  const glow = scene.add.image(img.x, img.y, 'glow').setScale(0.1).setTint(0xf2c14e).setBlendMode(Phaser.BlendModes.ADD).setDepth(img.depth + 1);
+  scene.tweens.add({
+    targets: glow,
+    scale: 0.5,
+    duration: 340,
+    ease: 'Sine.easeIn',
+    onUpdate: () => { glow.x = img.x; glow.y = img.y; },
+  });
+  scene.time.delayedCall(340, () => {
+    scene.tweens.add({
+      targets: img,
+      rotation: dir * 1.8,
+      duration: 260,
+      ease: 'Back.easeIn',
+      onComplete: () => {
+        glow.destroy();
+        const dust = scene.add.circle(img.x, img.y, 5, 0x8a7a5a, 0.85).setDepth(img.depth);
+        scene.tweens.add({ targets: dust, radius: 30, alpha: 0, duration: 300, onComplete: () => dust.destroy() });
+        const spark = scene.add.circle(img.x, img.y, 3, 0xf2c14e, 1).setDepth(img.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
+        scene.tweens.add({ targets: spark, radius: 16, alpha: 0, duration: 220, onComplete: () => spark.destroy() });
+        scene.tweens.add({ targets: img, alpha: 0, duration: 90, onComplete: () => img.destroy() });
+      },
+    });
+  });
+}
+
+// Ground Slam — the hammer drops at the Smith's own feet (it's a
+// self-centered AoE, not an attack on a distant target), with the
+// shockwave rippling outward in dust and orange sparks.
+export function playGroundSlam(scene, player) {
+  ensureWeaponTextures(scene);
+  const hand = HAND_SLASH.down;
+  const img = spawnWeapon(scene, player, 'hammer', hand, true);
+  img.rotation = -0.6;
+  scene.tweens.add({
+    targets: img,
+    rotation: 1.9,
+    y: img.y + 6,
+    duration: 260,
+    ease: 'Back.easeIn',
+    onComplete: () => {
+      scene.tweens.add({ targets: img, alpha: 0, duration: 100, onComplete: () => img.destroy() });
+      scene.cameras.main.shake(160, 0.004);
+      for (let i = 0; i < 3; i++) {
+        const ring = scene.add.circle(player.x, player.y + 10, 8).setStrokeStyle(3, 0xe8a05a, 0.9).setDepth(player.y - 1).setBlendMode(Phaser.BlendModes.ADD);
+        scene.tweens.add({
+          targets: ring,
+          delay: i * 90,
+          radius: 46 + i * 14,
+          alpha: 0,
+          duration: 420,
+          ease: 'Sine.easeOut',
+          onUpdate: () => ring.setStrokeStyle(3, 0xe8a05a, ring.alpha),
+          onComplete: () => ring.destroy(),
+        });
+      }
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const spark = scene.add.circle(player.x, player.y + 10, 2, 0xf2c14e, 1).setDepth(player.y).setBlendMode(Phaser.BlendModes.ADD);
+        scene.tweens.add({
+          targets: spark,
+          x: player.x + Math.cos(a) * 40,
+          y: player.y + 10 + Math.sin(a) * 26,
+          alpha: 0,
+          duration: 320,
+          ease: 'Quad.easeOut',
+          onComplete: () => spark.destroy(),
+        });
+      }
+    },
+  });
+}
+
+// Shadow Step — "blurs a few steps... reappearing" — an actual short dash
+// with fading afterimage copies trailing behind, not just a static streak.
+export function playShadowDash(scene, player, facing, dist = 56) {
+  const vec = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[facing] ?? [0, 1];
+  const texKey = player.texture.key;
+  const frameKey = player.frame.name;
+  const flip = player.flipX;
+  const steps = 4;
+  for (let i = 1; i <= steps; i++) {
+    const gx = player.x - vec[0] * (dist / steps) * (steps - i);
+    const gy = player.y - vec[1] * (dist / steps) * (steps - i);
+    scene.time.delayedCall(i * 25, () => {
+      const ghost = scene.add.image(gx, gy, texKey, frameKey).setAlpha(0.45).setTint(0x8ab4e8).setDepth(player.depth - 1).setFlipX(flip);
+      scene.tweens.add({ targets: ghost, alpha: 0, duration: 220, onComplete: () => ghost.destroy() });
+    });
+  }
+  scene.tweens.add({ targets: player, x: player.x + vec[0] * dist, y: player.y + vec[1] * dist, duration: 160, ease: 'Quad.easeOut' });
+}
+
+// Vanish — "fades from sight... a translucent afterimage flickers" — the
+// player sprite itself goes semi-transparent for the buff's duration,
+// snapping back to full opacity once it ends, instead of just a colored
+// ring appearing over an otherwise fully-visible character.
+export function playVanishFx(scene, player, durationMs = 4000) {
+  const texKey = player.texture.key;
+  const frameKey = player.frame.name;
+  const ghost = scene.add.image(player.x, player.y, texKey, frameKey).setAlpha(0.5).setTint(0xb8c8e8).setDepth(player.depth - 1).setFlipX(player.flipX);
+  scene.tweens.add({ targets: ghost, alpha: 0, duration: 400, onComplete: () => ghost.destroy() });
+  scene.tweens.add({ targets: player, alpha: 0.35, duration: 250, ease: 'Sine.easeOut' });
+  scene.time.delayedCall(durationMs, () => {
+    if (player.active) scene.tweens.add({ targets: player, alpha: 1, duration: 300 });
   });
 }
