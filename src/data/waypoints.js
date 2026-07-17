@@ -33,7 +33,7 @@ export const WAYPOINTS = [
     terrain: 'River valley below the mountains',
     beat: 'Lenwë and his people refuse the crossing and turn south.',
     quest: "Lenwë's Choice",
-    built: false,
+    built: true,
   },
   {
     id: 'hithaeglir',
@@ -41,7 +41,7 @@ export const WAYPOINTS = [
     terrain: 'High mountain pass',
     beat: 'The hardest crossing of the march, with something in the pass.',
     quest: 'The Pass',
-    built: false,
+    built: true,
   },
   {
     id: 'rhovanion',

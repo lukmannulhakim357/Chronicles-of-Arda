@@ -42,7 +42,7 @@ await page.mouse.click(135, 160); await page.waitForTimeout(900);
 await page.mouse.click(400, 110); await page.waitForTimeout(2500);
 await page.mouse.click(770, 20); await page.waitForTimeout(400); // pause menu
 await page.mouse.click(400, 159); await page.waitForTimeout(700); // Character
-await page.mouse.click(308, 32); await page.waitForTimeout(400); // Skills tab
+await page.mouse.click(262, 32); await page.waitForTimeout(400); // Skills tab (index 1 of 6 tabs, incl. the new Party tab)
 await page.screenshot({ path: `${OUT}/01-skills-tab.png` });
 
 // row 1 (Bash) '+' button sits at (684, 100) for this seeded save/viewport

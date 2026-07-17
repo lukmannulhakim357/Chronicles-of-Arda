@@ -4,6 +4,10 @@ import * as steppes from './steppes.js';
 import StragglersQuest from '../quests/stragglers.js';
 import * as greatforest from './greatforest.js';
 import LostBeforeNightfallQuest from '../quests/lostbeforenightfall.js';
+import * as valesanduin from './valesanduin.js';
+import LenwesChoiceQuest from '../quests/lenweschoice.js';
+import * as hithaeglir from './hithaeglir.js';
+import ThePassQuest from '../quests/thepass.js';
 import * as training from './training.js';
 import TrainingQuest from '../quests/training.js';
 
@@ -14,6 +18,8 @@ export const ZONES = {
   cuivienen: { build: cuivienen.build, Quest: VanishingQuest, questId: 'vanishing' },
   steppes: { build: steppes.build, Quest: StragglersQuest, questId: 'stragglers' },
   'great-forest': { build: greatforest.build, Quest: LostBeforeNightfallQuest, questId: 'lost-before-nightfall' },
+  'vales-anduin': { build: valesanduin.build, Quest: LenwesChoiceQuest, questId: 'lenwes-choice' },
+  hithaeglir: { build: hithaeglir.build, Quest: ThePassQuest, questId: 'the-pass' },
   training: { build: training.build, Quest: TrainingQuest, questId: 'training' }, // class-trial grounds, never saved
 };
 

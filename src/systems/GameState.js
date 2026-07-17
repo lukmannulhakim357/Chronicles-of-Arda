@@ -33,6 +33,10 @@ export function newGameState(kindredId, classId) {
     potions: { hp: 2, mp: 2 },
     titles: [],
     seenCards: [],
+    party: [], // recruited companions — src/systems/party.js
+    journeyFlags: {}, // cross-waypoint narrative flags, unlike quest.flags
+    // (reset fresh per zone by freshQuestState()) these persist for the
+    // whole run — e.g. WP4's companion choice, read back in WP5
   };
 }
 
@@ -62,6 +66,8 @@ export function setState(scene, state) {
   state.skills ??= {};
   state.actionBar ??= [null, null, null, null];
   state.potions ??= { hp: 2, mp: 2 };
+  state.party ??= [];
+  state.journeyFlags ??= {};
   if (state.mp == null) state.mp = derivedStats(effectiveStats(state)).maxMp;
   scene.registry.set('state', state);
 }

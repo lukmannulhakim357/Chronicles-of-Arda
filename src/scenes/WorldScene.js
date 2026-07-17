@@ -8,12 +8,16 @@ import { WAYPOINTS } from '../data/waypoints.js';
 import { ZONES } from '../world/zones.js';
 import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
-import { skillDef, rankOf, skillRing } from '../data/skills.js';
+import { skillDef, rankOf, skillRing, getTree } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
 import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin, playArrowRain, playChargedSmash, playGroundSlam, playShadowDash, playVanishFx, weaponShapeOf } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 import { iconTint } from '../fx/skillicons.js';
+import { companionCombatant } from '../systems/party.js';
+import { decideAction } from '../combat/companionAI.js';
+import { setCooldown, spendMp } from '../combat/combatant.js';
+import { computeHeal } from '../combat/formulas.js';
 
 const SPEED = 150;
 
@@ -72,6 +76,7 @@ export default class WorldScene extends Phaser.Scene {
     this.npcs = [];
     this.quest = new zoneDef.Quest(this);
     this.quest.spawnNpcs(zone.points);
+    this.spawnParty();
 
     // input
     this.cursors = this.input.keyboard?.createCursorKeys();
@@ -193,6 +198,24 @@ export default class WorldScene extends Phaser.Scene {
     this.scene.pause();
     this.scene.pause('UI');
     this.scene.launch('Character', { tab: 'gear', gearTutorial: true });
+  }
+
+  // scripted tutorial moment (Waypoint 4's trainer NPC) — opens the Skills
+  // tab with a nudge to spend the freshly-granted skill point
+  openCharacterForSkillTutorial() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', { tab: 'skills', skillsTutorial: true });
+  }
+
+  // scripted tutorial moment (Waypoint 5's party system unlock) — opens the
+  // new Party tab with a nudge explaining the cap/roster
+  openCharacterForPartyTutorial() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', { tab: 'party', partyTutorial: true });
   }
 
   // equipment/stats may have changed in the Character scene while World
@@ -468,6 +491,90 @@ export default class WorldScene extends Phaser.Scene {
     if (form) this.activeSummons.push(spawnSummon(this, form, this.player, getEnemy, onHit, 20000));
   }
 
+  // ---------- party (companions recruited via quests, from Waypoint 5 on) ----------
+
+  spawnParty() {
+    this.partyMembers = [];
+    (this.state.party ?? []).forEach((comp) => this.addCompanionToWorld(comp));
+  }
+
+  // Called both at zone entry (spawnParty above) and live, the moment a
+  // quest recruits a new companion mid-session — the roster in state.party
+  // is the source of truth, this just gives the new entry a body in the
+  // world to walk around and fight with.
+  addCompanionToWorld(comp) {
+    this.partyMembers ??= [];
+    if (this.partyMembers.some((p) => p.comp.id === comp.id)) return;
+    const off = { x: Phaser.Math.Between(-34, 34), y: Phaser.Math.Between(18, 40) };
+    const spr = this.add.sprite(this.player.x + off.x, this.player.y + off.y, comp.sheet, 10 * 13);
+    spr.play(`${comp.sheet}-idle-down`);
+    spr.setDepth(spr.y);
+    this.partyMembers.push({ comp, sprite: spr, combatant: companionCombatant(comp), followOff: off, facing: 'down', nextActionAt: 0 });
+  }
+
+  // Companions follow the player (same chase-toward-target technique every
+  // quest's own followers already use) and, whenever the current zone has
+  // an enemy up, take a combat action on their own beat via companionAI's
+  // role-based reactive priority — real skills/basic attacks, not just VFX.
+  updateParty() {
+    if (!this.partyMembers?.length) return;
+    const now = this.time.now;
+    const dt = this.game.loop.delta / 1000;
+    const enemies = this.quest.getEnemies?.() ?? [];
+    const enemyCombatants = enemies.map((e, i) => ({ id: `enemy${i}`, hp: e.hp ?? 1, maxHp: e.hp ?? 1 }));
+    const allCombatants = this.partyMembers.map((p) => p.combatant);
+
+    for (const p of this.partyMembers) {
+      if (!p.sprite?.active) continue;
+      const tx = this.player.x + p.followOff.x;
+      const ty = this.player.y + p.followOff.y;
+      const d = Phaser.Math.Distance.Between(p.sprite.x, p.sprite.y, tx, ty);
+      if (d > 8) {
+        const speed = d > 140 ? 170 : 120;
+        const angle = Math.atan2(ty - p.sprite.y, tx - p.sprite.x);
+        p.sprite.x += Math.cos(angle) * speed * dt;
+        p.sprite.y += Math.sin(angle) * speed * dt;
+        const dir = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle)) ? (Math.cos(angle) > 0 ? 'right' : 'left') : Math.sin(angle) > 0 ? 'down' : 'up';
+        p.facing = dir;
+        p.sprite.play(`${p.comp.sheet}-walk-${dir}`, true);
+      } else if (p.sprite.anims.currentAnim?.key.includes('-walk-')) {
+        p.sprite.play(`${p.comp.sheet}-idle-${p.facing}`, true);
+      }
+      p.sprite.setDepth(p.sprite.y);
+
+      if (!enemies.length || now < p.nextActionAt) continue;
+      p.nextActionAt = now + Phaser.Math.Between(1400, 2000);
+      const allies = allCombatants.filter((c) => c !== p.combatant);
+      const action = decideAction({ self: p.combatant, allies, enemies: enemyCombatants, now, tree: getTree(p.comp.classId) });
+      this.resolvePartyAction(p, action);
+    }
+  }
+
+  resolvePartyAction(p, action) {
+    if (!action || action.type === 'idle') return;
+    if (action.type === 'basic') {
+      this.quest.onCompanionAttack?.(p.comp, p.combatant, { skillPct: 1, isMagic: false });
+      return;
+    }
+    const def = skillDef(p.comp.classId, action.skillId);
+    if (!def) return;
+    setCooldown(p.combatant, def.id, this.time.now, def.cd ?? 0);
+    spendMp(p.combatant, def.mp ?? 0);
+    const enemyPos = this.quest.getEnemyPos?.() ?? { x: p.sprite.x, y: p.sprite.y };
+    playSkillFx(this, def, { x: p.sprite.x, y: p.sprite.y }, enemyPos, p.comp.classId);
+    if (def.kind === 'heal' || def.kind === 'hot') {
+      // companion heals land on the player — the only ally worth prioritizing
+      // with just 1-2 companions in the roster at this stage
+      const healAmt = computeHeal({ targetMaxHp: this.stats.maxHp, healPct: def.healPct ?? 0.15 });
+      this.state.hp = Math.min(this.stats.maxHp, this.state.hp + healAmt);
+      this.emitHp();
+      this.showFloatText(this.player.x, this.player.y - 10, `+${healAmt}`, '#7fe89a');
+      return;
+    }
+    if (['buff', 'debuff', 'cc', 'cleanse'].includes(def.kind)) return; // visual only, matches the player's own skills' current scope
+    this.quest.onCompanionAttack?.(p.comp, p.combatant, { skillPct: def.damagePct ?? 1, isMagic: !!def.isMagic, rank: 1, isSkill: true });
+  }
+
   usePotion(pot) {
     const now = this.time.now;
     if ((this.potionCooldown ?? 0) > now) {
@@ -560,5 +667,6 @@ export default class WorldScene extends Phaser.Scene {
 
     // quest per-frame logic
     this.quest.update();
+    this.updateParty();
   }
 }

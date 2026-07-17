@@ -1,12 +1,14 @@
 import Phaser from 'phaser';
-import { COLORS, FONTS } from '../config.js';
+import { COLORS, FONTS, ROW, SHEET_COLS } from '../config.js';
 import { makeTextButton } from '../ui/widgets.js';
 import { MATERIALS, armorStyle, drawPanel, drawBagPanel, ensureItemTypeIcons, slotIconTexture } from '../ui/theme.js';
 import { getState, setState, effectiveStats } from '../systems/GameState.js';
 import { itemById, bonusLine } from '../data/items.js';
 import { derivedStats, classById } from '../data/classes.js';
+import { kindredById } from '../data/kindreds.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { PARTY_CAP } from '../systems/party.js';
 import {
   MAX_TREE_POINTS,
   getTree,
@@ -33,6 +35,7 @@ import { ensureSkillIconTextures, iconTexture, iconTint } from '../fx/skillicons
 const TABS = [
   { key: 'gear', label: '⚔ Gear' },
   { key: 'skills', label: '✦ Skills' },
+  { key: 'party', label: '👥 Party' },
   { key: 'titles', label: '👑 Titles' },
   { key: 'collection', label: '📜 Tales' },
   { key: 'craft', label: '⚒ Craft' },
@@ -78,6 +81,8 @@ export default class CharacterScene extends Phaser.Scene {
     this.tab = data?.tab ?? 'gear';
     this.justLeveledUp = !!data?.levelUp;
     this.gearTutorial = !!data?.gearTutorial;
+    this.skillsTutorial = !!data?.skillsTutorial;
+    this.partyTutorial = !!data?.partyTutorial;
   }
 
   create() {
@@ -93,6 +98,7 @@ export default class CharacterScene extends Phaser.Scene {
     this.state.skillPoints ??= 0;
     this.state.titles ??= [];
     this.state.seenCards ??= [];
+    this.state.party ??= [];
     this.pending = { VIT: 0, MAG: 0, STR: 0, DEX: 0 };
     this.inspect = null;
     this.inspectSkill = null;
@@ -131,6 +137,7 @@ export default class CharacterScene extends Phaser.Scene {
     const bodyTop = tabY + tabH / 2 + 12;
     if (this.tab === 'gear') this.renderGearTab(bodyTop);
     else if (this.tab === 'skills') this.renderSkillsTab(bodyTop);
+    else if (this.tab === 'party') this.renderPartyTab(bodyTop);
     else if (this.tab === 'titles') this.renderTitlesTab(bodyTop);
     else if (this.tab === 'collection') this.renderCollectionTab(bodyTop);
     else if (this.tab === 'craft') this.renderCraftTab(bodyTop);
@@ -551,8 +558,15 @@ export default class CharacterScene extends Phaser.Scene {
         color: COLORS.textDim,
       })
       .setOrigin(0.5, 0);
+    if (this.skillsTutorial) {
+      this.add
+        .text(cx, top + 28, `Tap + next to a skill to spend a point — you have ${banked} to spend.`, {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic',
+        })
+        .setOrigin(0.5, 0);
+    }
 
-    const rowTop = top + 30;
+    const rowTop = top + (this.skillsTutorial ? 42 : 30);
     const rowH = 22;
     const rowW = Math.min(600, width - 24);
     const detailH = 100;
@@ -659,6 +673,78 @@ export default class CharacterScene extends Phaser.Scene {
       })
       .setOrigin(0, 0);
     return h;
+  }
+
+  // ---------- Party tab: recruited companions (Waypoint 5 on) ----------
+  // Read-only roster for now — no formation swap yet, per the design doc's
+  // own "basic version first" note; companions fight automatically via
+  // WorldScene.updateParty()/companionAI.js, they're not manually piloted.
+
+  renderPartyTab(top) {
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const party = this.state.party ?? [];
+
+    this.add
+      .text(cx, top, `Party (${party.length + 1}/${PARTY_CAP})`, { fontFamily: FONTS.body, fontSize: '13px', color: '#d9b968' })
+      .setOrigin(0.5, 0);
+    let y = top + 16;
+    if (this.partyTutorial) {
+      this.add
+        .text(cx, y, 'Companions fight alongside you automatically — no piloting needed. Recruit more as the journey continues.', {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic', align: 'center', wordWrap: { width: width - 32 },
+        })
+        .setOrigin(0.5, 0);
+      y += 26;
+    }
+    y += 4;
+
+    const cardW = Math.min(500, width - 24);
+    const cardH = Math.min(58, (height - y - 46) / Math.max(1, party.length + 1));
+
+    const kindred = kindredById(this.state.kindred);
+    this.renderPartyCard(cx, y + cardH / 2, cardW, cardH, {
+      name: kindred?.name ?? 'You',
+      classId: this.state.classId,
+      level: this.state.level ?? 1,
+      sheet: kindred?.sheet,
+      isPlayer: true,
+    });
+    y += cardH + 6;
+
+    party.forEach((comp) => {
+      this.renderPartyCard(cx, y + cardH / 2, cardW, cardH, comp);
+      y += cardH + 6;
+    });
+
+    if (!party.length) {
+      this.add
+        .text(cx, y + 10, 'No companions recruited yet — the road ahead will bring some.', {
+          fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim, fontStyle: 'italic', align: 'center', wordWrap: { width: width - 40 },
+        })
+        .setOrigin(0.5, 0);
+    }
+  }
+
+  renderPartyCard(cx, y, w, h, comp) {
+    drawPanel(this, cx, y, w, h, { material: comp.isPlayer ? 'wood' : 'slate', radius: 8 });
+    const klass = classById(comp.classId);
+    if (comp.sheet && this.textures.exists(comp.sheet)) {
+      const spr = this.add.sprite(cx - w / 2 + 24, y, comp.sheet, ROW.walkDown * SHEET_COLS);
+      spr.play(`${comp.sheet}-idle-down`);
+      spr.setScale(Math.min(1, (h - 6) / 64));
+    }
+    this.add
+      .text(cx - w / 2 + 48, y - h * 0.22, comp.name, { fontFamily: FONTS.body, fontSize: '13px', color: '#f5ecd8' })
+      .setOrigin(0, 0.5);
+    this.add
+      .text(cx - w / 2 + 48, y + h * 0.22, `${klass?.name ?? comp.classId} • Lv. ${comp.level}`, {
+        fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968',
+      })
+      .setOrigin(0, 0.5);
+    if (comp.isPlayer) {
+      this.add.text(cx + w / 2 - 8, y, 'You', { fontFamily: FONTS.body, fontSize: '9px', color: COLORS.textDim, fontStyle: 'italic' }).setOrigin(1, 0.5);
+    }
   }
 
   // ---------- Titles tab (stub) ----------
