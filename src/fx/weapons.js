@@ -13,6 +13,10 @@ const SHAPES = {
   travelers_hammer: 'hammer',
   ranging_dagger: 'dagger',
   travelers_talisman: 'talisman',
+  ash_spear: 'spear',
+  hunters_sling: 'sling',
+  captains_horn: 'horn',
+  summoners_horn: 'talisman', // a magic-flavored horn — reuses the raise+flare family
 };
 
 export function weaponShapeOf(itemId) {
@@ -75,6 +79,25 @@ export function ensureWeaponTextures(scene) {
     g.fillTriangle(6, 8, 1, 14, 11, 14);
     g.fillTriangle(1, 14, 11, 14, 6, 20);
   });
+  mk('fxw-spear', 6, 40, (g) => {
+    g.fillStyle(0x6b4a2a, 1);
+    g.fillRect(2, 6, 2, 34); // haft, longer reach than the sword
+    g.fillStyle(0xcdd6e4, 1);
+    g.fillTriangle(0, 6, 6, 6, 3, 0); // iron tip
+  });
+  mk('fxw-sling', 12, 16, (g) => {
+    g.lineStyle(2, 0x6b4a2a, 1);
+    g.lineBetween(1, 2, 5, 10);
+    g.lineBetween(11, 2, 7, 10);
+    g.fillStyle(0x8a6a3a, 1);
+    g.fillEllipse(6, 12, 6, 4); // leather cradle
+  });
+  mk('fxw-horn', 16, 14, (g) => {
+    g.fillStyle(0xd9b968, 1);
+    g.fillTriangle(0, 10, 14, 2, 14, 12); // curved brass body (flattened)
+    g.fillStyle(0xf2d06b, 1);
+    g.fillCircle(2, 10, 3); // bell mouth
+  });
 }
 
 const HAND = {
@@ -99,6 +122,20 @@ function arrow(scene, x, y, dx, dy, delay = 0, dist = 68) {
     duration: 120 + dist * 0.7,
     ease: 'Sine.easeIn',
     onComplete: () => a.destroy(),
+  });
+}
+
+function pebble(scene, x, y, dx, dy, delay = 0, dist = 68) {
+  const p = scene.add.circle(x, y, 3, 0x8a8a8a, 1).setDepth(59006).setAlpha(0);
+  scene.tweens.add({
+    targets: p,
+    delay,
+    alpha: { from: 1, to: 0.5 },
+    x: x + dx * dist,
+    y: y + dy * dist,
+    duration: 100 + dist * 0.55,
+    ease: 'Sine.easeIn',
+    onComplete: () => p.destroy(),
   });
 }
 
@@ -134,7 +171,7 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
     aim = { dx: Math.cos(ang), dy: Math.sin(ang), dist: Phaser.Math.Distance.Between(x, y, targetPos.x, targetPos.y) };
   }
 
-  if (shape === 'sword' || shape === 'dagger' || shape === 'hammer') {
+  if (shape === 'sword' || shape === 'dagger' || shape === 'hammer' || shape === 'horn') {
     img.rotation = dir * -1.3;
     scene.tweens.add({
       targets: img,
@@ -158,7 +195,34 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
         onComplete: () => img2.destroy(),
       });
     }
-  } else if (shape === 'bow') {
+  } else if (shape === 'spear') {
+    // a straight thrust down the aim line, not an arc
+    scene.tweens.add({
+      targets: img,
+      x: x + aim.dx * (skill ? 26 : 16),
+      y: y + aim.dy * (skill ? 26 : 16),
+      duration: skill ? 160 : 130,
+      yoyo: true,
+      ease: 'Quad.easeOut',
+      onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 110, onComplete: () => img.destroy() }),
+    });
+    if (skill) {
+      // a second, deeper thrust — the skill is two jabs, not one
+      const img2 = spawnWeapon(scene, player, shape, hand, true);
+      img2.setAlpha(0);
+      scene.tweens.add({
+        targets: img2,
+        delay: 200,
+        alpha: { from: 0.9, to: 0 },
+        x: img2.x + aim.dx * 34,
+        y: img2.y + aim.dy * 34,
+        duration: 220,
+        ease: 'Quad.easeOut',
+        onComplete: () => img2.destroy(),
+      });
+    }
+  } else if (shape === 'bow' || shape === 'sling') {
+    const shoot = shape === 'bow' ? arrow : pebble;
     img.rotation = Math.atan2(hand.dy, hand.dx) * 0.5;
     scene.tweens.add({
       targets: img,
@@ -169,12 +233,12 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
       onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() }),
     });
     if (skill) {
-      // volley: three arrows fanned out around the aim line
-      arrow(scene, x, y, aim.dx, aim.dy, 90, aim.dist);
-      arrow(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 170, aim.dist);
-      arrow(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 250, aim.dist);
+      // volley: three shots fanned out around the aim line
+      shoot(scene, x, y, aim.dx, aim.dy, 90, aim.dist);
+      shoot(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 170, aim.dist);
+      shoot(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 250, aim.dist);
     } else {
-      arrow(scene, x, y, aim.dx, aim.dy, 90, aim.dist); // every shot looses an arrow
+      shoot(scene, x, y, aim.dx, aim.dy, 90, aim.dist); // every shot looses a projectile
     }
   } else {
     // staff / harp / talisman — raise it, let the focus answer

@@ -8,7 +8,7 @@ import { SaveSystem } from '../systems/SaveSystem.js';
 import { getTree } from '../data/skills.js';
 import { playUltimate } from '../fx/skillfx.js';
 import { playWeaponSwing } from '../fx/weapons.js';
-import { WEAPON_BY_CLASS } from '../data/items.js';
+import { WEAPON_BY_CLASS, ALT_WEAPON_BY_CLASS } from '../data/items.js';
 import { derivedStats } from '../data/classes.js';
 
 // classes whose capstone is party-support — their preview adds a companion
@@ -263,6 +263,10 @@ export default class CreationScene extends Phaser.Scene {
     state.hp = d.maxHp;
     state.mp = d.maxMp;
     state.equipment.weapon = WEAPON_BY_CLASS[klass.id] ?? null;
+    // classes with a second listed weapon (e.g. Skirmisher's "Dagger &
+    // sling") get it in the pack too, so both can be equipped and compared
+    const alt = ALT_WEAPON_BY_CLASS[klass.id];
+    if (alt) state.inventory.push(alt);
     state.potions = { hp: 9, mp: 9 };
     setState(this, state);
     this.scene.start('World');

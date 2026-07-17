@@ -73,7 +73,9 @@ export default class UIScene extends Phaser.Scene {
       this.skillBtns.push(b);
     }
     this.rotateBtn = this.makeRoundButton('⟳', 0xd9b968, () => {
-      this.ringOffset = (this.ringOffset + 1) % 8;
+      // a clean page-swap between batch A (slots 0-3) and batch B (slots
+      // 4-7) — not a sliding window, so nothing from the old view carries over
+      this.ringOffset = this.ringOffset === 0 ? 4 : 0;
       this.renderRing();
     }, 18);
     this.rotateBtn.cont.setVisible(false);
