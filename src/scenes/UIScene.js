@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS, EV } from '../config.js';
 import { makeTextButton } from '../ui/widgets.js';
+import { MATERIALS, drawPanel } from '../ui/theme.js';
 import { ensureSkillIconTextures, iconTexture } from '../fx/skillicons.js';
 
 // HUD overlay running above WorldScene:
@@ -82,50 +83,58 @@ export default class UIScene extends Phaser.Scene {
     }, 18);
     this.rotateBtn.cont.setVisible(false);
 
+    // a wood-and-leather banner backing the whole top-left cluster (quest
+    // tracker + HP/MP/XP), so it reads as one HUD plaque instead of text
+    // and bars floating loose over the world — tall enough that even a
+    // three-line objective (Training Grounds' is the longest in the game)
+    // clears the HP bar below it instead of overlapping it
+    this.hudBanner = drawPanel(this, 122, 66, 234, 128, { material: 'wood', radius: 8, depth: 59 });
+
     // quest tracker
-    this.trackerTitle = this.add.text(12, 10, '', {
-      fontFamily: FONTS.body, fontSize: '14px', color: '#d9b968', fontStyle: 'italic',
+    this.trackerTitle = this.add.text(12, 8, '', {
+      fontFamily: FONTS.body, fontSize: '14px', color: '#f2d06b', fontStyle: 'italic',
     }).setDepth(60);
-    this.trackerObjective = this.add.text(12, 30, '', {
-      fontFamily: FONTS.body, fontSize: '13px', color: COLORS.text, wordWrap: { width: 230 },
+    this.trackerObjective = this.add.text(12, 28, '', {
+      fontFamily: FONTS.body, fontSize: '13px', color: '#f0ead8', wordWrap: { width: 222 }, lineSpacing: 2,
     }).setDepth(60);
 
     // hp bar
-    this.hpBg = this.add.rectangle(12, 58, 120, 8, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60);
-    this.hpFill = this.add.rectangle(13, 58, 118, 6, 0x3fae5a, 1).setOrigin(0, 0.5).setDepth(61);
+    this.hpBg = this.add.rectangle(12, 80, 120, 8, 0x000000, 0.5).setStrokeStyle(1, 0x000000, 0.6).setOrigin(0, 0.5).setDepth(60);
+    this.hpFill = this.add.rectangle(13, 80, 118, 6, 0x3fae5a, 1).setOrigin(0, 0.5).setDepth(61);
     this.hpBg.setVisible(false);
     this.hpFill.setVisible(false);
 
     // mp bar
-    this.mpBg = this.add.rectangle(12, 70, 120, 6, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
-    this.mpFill = this.add.rectangle(13, 70, 118, 4, 0x4a7fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
+    this.mpBg = this.add.rectangle(12, 92, 120, 6, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
+    this.mpFill = this.add.rectangle(13, 92, 118, 4, 0x4a7fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
 
     // level + xp bar
-    this.lvlText = this.add.text(12, 82, '', {
-      fontFamily: FONTS.body, fontSize: '11px', color: '#d9b968',
+    this.lvlText = this.add.text(12, 104, '', {
+      fontFamily: FONTS.body, fontSize: '11px', color: '#f2d06b',
     }).setDepth(60).setVisible(false);
-    this.xpBg = this.add.rectangle(12, 98, 120, 5, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
-    this.xpFill = this.add.rectangle(13, 98, 118, 3, 0x6a8fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
+    this.xpBg = this.add.rectangle(12, 120, 120, 5, 0x000000, 0.5).setOrigin(0, 0.5).setDepth(60).setVisible(false);
+    this.xpFill = this.add.rectangle(13, 120, 118, 3, 0x6a8fd9, 1).setOrigin(0, 0.5).setDepth(61).setVisible(false);
 
     // menu button
     this.menuBtn = this.add.text(0, 0, '☰', {
-      fontFamily: 'sans-serif', fontSize: '26px', color: '#e8e4d8',
-      backgroundColor: 'rgba(16,24,48,0.75)', padding: { x: 12, y: 6 },
+      fontFamily: 'sans-serif', fontSize: '26px', color: '#f0ead8',
+      backgroundColor: 'rgba(74,48,24,0.85)', padding: { x: 12, y: 6 },
     }).setDepth(60).setInteractive({ useHandCursor: true });
     this.menuBtn.on('pointerup', () => this.togglePause());
 
     // gold, top-right under the menu button
     this.goldText = this.add.text(0, 0, '🪙 0', {
-      fontFamily: FONTS.body, fontSize: '13px', color: '#d9b968',
-      backgroundColor: 'rgba(16,24,48,0.75)', padding: { x: 8, y: 4 },
+      fontFamily: FONTS.body, fontSize: '13px', color: '#f2d06b',
+      backgroundColor: 'rgba(74,48,24,0.85)', padding: { x: 8, y: 4 },
     }).setDepth(60).setVisible(false);
 
-    // dialogue bottom sheet
+    // dialogue bottom sheet — a parchment scroll rather than a flat navy
+    // box, so talk reads distinctly from the rest of the HUD
     this.sheet = this.add.container(0, 0).setDepth(80).setVisible(false);
-    this.sheetBg = this.add.rectangle(0, 0, 10, 10, COLORS.panel, 0.96).setStrokeStyle(2, COLORS.panelLine);
-    this.sheetName = this.add.text(0, 0, '', { fontFamily: FONTS.body, fontSize: '14px', color: '#d9b968', fontStyle: 'italic' });
-    this.sheetText = this.add.text(0, 0, '', { fontFamily: FONTS.body, fontSize: '16px', color: COLORS.text, lineSpacing: 4 });
-    this.sheetMore = this.add.text(0, 0, '▾ tap', { fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim });
+    this.sheetBg = this.add.rectangle(0, 0, 10, 10, MATERIALS.parchment.base, 0.97).setStrokeStyle(3, MATERIALS.parchment.edge);
+    this.sheetName = this.add.text(0, 0, '', { fontFamily: FONTS.body, fontSize: '14px', color: '#7a4a1c', fontStyle: 'italic' });
+    this.sheetText = this.add.text(0, 0, '', { fontFamily: FONTS.body, fontSize: '16px', color: '#2c2010', lineSpacing: 4 });
+    this.sheetMore = this.add.text(0, 0, '▾ tap', { fontFamily: FONTS.body, fontSize: '11px', color: '#8a7548' });
     this.sheet.add([this.sheetBg, this.sheetName, this.sheetText, this.sheetMore]);
     this.sheetBg.setInteractive();
     this.sheetBg.on('pointerup', () => this.advanceDialogue());
@@ -153,7 +162,11 @@ export default class UIScene extends Phaser.Scene {
 
   makeRoundButton(label, ringColor, onTap, radius = 38) {
     const cont = this.add.container(0, 0).setDepth(55);
-    const circle = this.add.circle(0, 0, radius, COLORS.panel, 0.85).setStrokeStyle(3, ringColor, 0.9);
+    // a leather medallion look: dark rim, warm base, a soft highlight arc up
+    // top — instead of the flat navy disc every wheel/action button used
+    const rim = this.add.circle(0, 0, radius + 2, MATERIALS.wood.edge, 0.9);
+    const circle = this.add.circle(0, 0, radius, MATERIALS.wood.base, 0.92).setStrokeStyle(3, ringColor, 0.95);
+    const sheen = this.add.circle(-radius * 0.18, -radius * 0.35, radius * 0.5, 0xffffff, 0.1);
     const txt = this.add.text(0, 0, label, {
       fontFamily: FONTS.body, fontSize: radius < 30 ? '10px' : '14px', color: COLORS.text, align: 'center', wordWrap: { width: radius * 1.7 },
     }).setOrigin(0.5);
@@ -161,15 +174,15 @@ export default class UIScene extends Phaser.Scene {
     // texture; when shown, the icon takes the upper half of the circle and
     // the label shrinks to a caption underneath it
     const icon = this.add.image(0, -radius * 0.28, iconTexture('bash')).setVisible(false).setDisplaySize(radius * 0.85, radius * 0.85);
-    cont.add([circle, txt, icon]);
+    cont.add([rim, circle, sheen, txt, icon]);
     cont.setSize(radius * 2, radius * 2);
     // hit-area coords are local with (0,0) at the object's TOP-LEFT, so the
     // circle must be centered at (radius, radius) — centering it at (0,0)
     // leaves only a corner sliver tappable (the old, very stiff-feeling bug)
     circle.setInteractive(new Phaser.Geom.Circle(radius, radius, radius + 6), Phaser.Geom.Circle.Contains);
-    circle.on('pointerdown', () => circle.setFillStyle(0x1c2a50, 1));
-    circle.on('pointerup', () => { circle.setFillStyle(COLORS.panel, 0.85); onTap(); });
-    circle.on('pointerout', () => circle.setFillStyle(COLORS.panel, 0.85));
+    circle.on('pointerdown', () => { circle.setFillStyle(MATERIALS.wood.dark, 1); sheen.setVisible(false); });
+    circle.on('pointerup', () => { circle.setFillStyle(MATERIALS.wood.base, 0.92); sheen.setVisible(true); onTap(); });
+    circle.on('pointerout', () => { circle.setFillStyle(MATERIALS.wood.base, 0.92); sheen.setVisible(true); });
     return { cont, txt, circle, icon };
   }
 
@@ -246,7 +259,7 @@ export default class UIScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const w = Math.min(360, width - 60);
     const cont = this.add.container(width / 2, height * 0.32).setDepth(92).setAlpha(0);
-    const bg = this.add.rectangle(0, 0, w, 64, 0x101830, 0.96).setStrokeStyle(2, 0xd9b968);
+    const bg = this.add.rectangle(0, 0, w, 64, MATERIALS.wood.base, 0.96).setStrokeStyle(2, 0xf2d06b);
     const t1 = this.add.text(0, -14, `✦ Item diperoleh: ${name}`, {
       fontFamily: FONTS.body, fontSize: '14px', color: '#d9b968',
     }).setOrigin(0.5);
@@ -365,9 +378,7 @@ export default class UIScene extends Phaser.Scene {
     const n = this.dialogue.choices.length;
     this.dialogue.choices.forEach((c, i) => {
       const y = sheetTop - (n - i) * 56 - 6;
-      const b = makeTextButton(this, width / 2, y, w, 48, c.label, () => this.closeDialogue(c.id), {
-        fill: 0x18244a, fillAlpha: 0.97,
-      });
+      const b = makeTextButton(this, width / 2, y, w, 48, c.label, () => this.closeDialogue(c.id));
       b.setDepth(85);
       this.choiceButtons.push(b);
     });

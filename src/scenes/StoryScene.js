@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS } from '../config.js';
 import { makeTextButton, starfield } from '../ui/widgets.js';
+import { MATERIALS } from '../ui/theme.js';
 import { getState, setState } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 
@@ -126,7 +127,7 @@ export default class StoryScene extends Phaser.Scene {
           .text(cx, ry, parts.join('    '), { fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968' })
           .setOrigin(0.5, 0);
         const w = Math.max(line.width, label.width) + 36;
-        this.add.rectangle(cx, ry - 4, w, 46, 0x101830, 0.85).setStrokeStyle(1, COLORS.panelLine).setDepth(-1);
+        this.add.rectangle(cx, ry - 4, w, 46, MATERIALS.wood.base, 0.9).setStrokeStyle(1, COLORS.gold).setDepth(-1);
       }
     }
 

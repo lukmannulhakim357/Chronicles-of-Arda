@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS } from '../config.js';
 import { makeTextButton } from '../ui/widgets.js';
+import { MATERIALS, armorStyle, drawPanel, drawBagPanel, ensureItemTypeIcons, slotIconTexture } from '../ui/theme.js';
 import { getState, setState, effectiveStats } from '../systems/GameState.js';
 import { itemById, bonusLine } from '../data/items.js';
 import { derivedStats, classById } from '../data/classes.js';
@@ -68,14 +69,6 @@ const DERIVED_ROWS = [
 
 const CRAFTS = ['Blacksmithing', 'Tailoring', 'Alchemy', 'Cooking'];
 
-// Word-initials so near-identical item names (e.g. two "Herder's ...")
-// don't collapse into the same two-letter monogram in the pack grid.
-function monogram(name) {
-  const words = name.replace(/['’]s\b/gi, '').split(/\s+/).filter(Boolean);
-  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
-
 export default class CharacterScene extends Phaser.Scene {
   constructor() {
     super('Character');
@@ -89,6 +82,7 @@ export default class CharacterScene extends Phaser.Scene {
 
   create() {
     ensureSkillIconTextures(this);
+    ensureItemTypeIcons(this);
     this.state = getState(this);
     // defensive defaults for characters saved before these systems existed
     this.state.inventory ??= [];
@@ -155,11 +149,11 @@ export default class CharacterScene extends Phaser.Scene {
   buildTab(key, label, x, y, w, h) {
     const active = this.tab === key;
     const box = this.add
-      .rectangle(x, y, w, h, active ? COLORS.panel : 0x0a0e1e, active ? 0.96 : 0.6)
-      .setStrokeStyle(2, active ? COLORS.gold : COLORS.panelLine);
+      .rectangle(x, y, w, h, active ? MATERIALS.wood.base : MATERIALS.slate.dark, active ? 0.96 : 0.75)
+      .setStrokeStyle(2, active ? COLORS.gold : MATERIALS.slate.light);
     box.setInteractive({ useHandCursor: true });
     this.add
-      .text(x, y, label, { fontFamily: FONTS.body, fontSize: '11px', color: active ? '#e8e4d8' : COLORS.textDim })
+      .text(x, y, label, { fontFamily: FONTS.body, fontSize: '11px', color: active ? '#f5ecd8' : COLORS.textDim })
       .setOrigin(0.5);
     box.on('pointerup', () => {
       if (this.tab === key) return;
@@ -212,6 +206,12 @@ export default class CharacterScene extends Phaser.Scene {
     const rightW = Math.max(140, width - rightX0 - 12);
     const bottomLimit = height - 74;
 
+    // an "armory board" backing behind the paperdoll/stats, and a satchel
+    // behind the pack — two distinct materials so the two halves of the
+    // Gear tab read as separate pieces of furniture, not one flat sheet
+    drawPanel(this, leftCx, (y + bottomLimit) / 2, leftW + 8, bottomLimit - y + 4, { material: 'slate', radius: 10 });
+    drawBagPanel(this, rightX0 + rightW / 2, (y + bottomLimit) / 2, rightW + 8, bottomLimit - y + 4);
+
     const afterDoll = this.renderPaperdoll(leftCx, leftW, y);
     const afterStats = this.renderStatBlock(leftCx, leftW, afterDoll);
     this.renderDerivedList(leftCx, leftW, afterStats);
@@ -241,21 +241,46 @@ export default class CharacterScene extends Phaser.Scene {
     const itemId = this.state.equipment?.[slotKey];
     const item = itemId ? itemById(itemId) : null;
     const selected = this.inspect?.kind === 'slot' && this.inspect.slotKey === slotKey;
-    const box = this.add.rectangle(x, y, w, h, item ? COLORS.panel : 0x0a0e1e, item ? 0.94 : 0.7);
-    box.setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : item ? COLORS.gold : COLORS.panelLine, item ? 1 : 0.6);
+    // armor slots pick up their weight-class color (heavy/light/robe);
+    // weapon has its own neutral steel look; empty/locked slots stay dark
+    const isWeapon = slotKey === 'weapon';
+    const style = item && !isWeapon ? armorStyle(item.armorType) : null;
+    const fill = item ? (style ? style.base : MATERIALS.slate.light) : MATERIALS.slate.dark;
+    const border = item ? (style ? style.border : COLORS.gold) : MATERIALS.slate.light;
+    const box = this.add.rectangle(x, y, w, h, fill, item ? 0.92 : 0.6);
+    box.setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : border, item ? 1 : 0.55);
     this.add
       .text(x, y - h / 2 + 2, def.label, { fontFamily: FONTS.body, fontSize: '8px', color: COLORS.textDim })
       .setOrigin(0.5, 0);
+
+    // the item-type silhouette always shows — full color when filled, a
+    // faint hint of "what goes here" when the slot is empty
+    const icon = this.add
+      .image(x, y - h * 0.12, slotIconTexture(slotKey))
+      .setDisplaySize(Math.min(20, w * 0.4), Math.min(20, w * 0.4))
+      .setTint(item ? 0xf5ecd8 : 0x3a4a5a)
+      .setAlpha(item ? 0.95 : def.locked ? 0.35 : 0.55);
+
     if (item) {
       this.add
-        .text(x, y + 4, item.name, {
+        .text(x, y + h * 0.28, item.name, {
           fontFamily: FONTS.body,
-          fontSize: '8px',
+          fontSize: '7px',
           color: '#e8e4d8',
           align: 'center',
           wordWrap: { width: w - 6 },
         })
         .setOrigin(0.5);
+      if (style) {
+        this.add
+          .text(x + w / 2 - 2, y + h / 2 - 2, style.label, {
+            fontFamily: FONTS.body,
+            fontSize: '6px',
+            color: '#' + style.border.toString(16).padStart(6, '0'),
+            fontStyle: 'italic',
+          })
+          .setOrigin(1, 1);
+      }
       box.setInteractive({ useHandCursor: true });
       box.on('pointerup', () => {
         this.inspect = { kind: 'slot', slotKey, itemId };
@@ -263,9 +288,10 @@ export default class CharacterScene extends Phaser.Scene {
       });
     } else {
       this.add
-        .text(x, y + 6, def.locked ? 'Locked' : 'Empty', { fontFamily: FONTS.body, fontSize: '8px', color: '#5a6a88' })
+        .text(x, y + h * 0.28, def.locked ? 'Locked' : 'Empty', { fontFamily: FONTS.body, fontSize: '8px', color: '#5a6a88' })
         .setOrigin(0.5);
     }
+    return icon;
   }
 
   renderStatBlock(cx, w, top) {
@@ -294,7 +320,7 @@ export default class CharacterScene extends Phaser.Scene {
   buildStatRow(stat, cx, y, w, h) {
     const base = this.state.stats[stat] ?? 0;
     const pending = this.pending[stat];
-    this.add.rectangle(cx, y, w, h, COLORS.panel, 0.9).setStrokeStyle(1, COLORS.panelLine);
+    this.add.rectangle(cx, y, w, h, MATERIALS.slate.base, 0.85).setStrokeStyle(1, MATERIALS.slate.light);
     this.add
       .text(cx - w / 2 + 8, y, stat, { fontFamily: FONTS.body, fontSize: '11px', color: '#e8e4d8' })
       .setOrigin(0, 0.5);
@@ -407,17 +433,15 @@ export default class CharacterScene extends Phaser.Scene {
       const cx2 = x0 + col * (cell + gap) + cell / 2;
       const cy2 = gridTop + row * (cell + gap) + cell / 2;
       const selected = this.inspect?.kind === 'inv' && this.inspect.index === i;
+      const style = item.slot !== 'weapon' ? armorStyle(item.armorType) : null;
       const box = this.add
-        .rectangle(cx2, cy2, cell, cell, COLORS.panel, 0.94)
-        .setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : COLORS.panelLine, selected ? 1 : 0.7);
+        .rectangle(cx2, cy2, cell, cell, style ? style.base : MATERIALS.slate.light, 0.92)
+        .setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : style ? style.border : COLORS.gold, selected ? 1 : 0.85);
       box.setInteractive({ useHandCursor: true });
       this.add
-        .text(cx2, cy2, monogram(item.name), {
-          fontFamily: FONTS.body,
-          fontSize: '13px',
-          color: '#d9b968',
-        })
-        .setOrigin(0.5);
+        .image(cx2, cy2, slotIconTexture(item.slot))
+        .setDisplaySize(cell * 0.55, cell * 0.55)
+        .setTint(0xf5ecd8);
       box.on('pointerup', () => {
         this.inspect = { kind: 'inv', index: i, itemId };
         this.build();
@@ -430,29 +454,42 @@ export default class CharacterScene extends Phaser.Scene {
   }
 
   renderDetailPanel(x0, w, top, h) {
-    this.add.rectangle(x0 + w / 2, top + h / 2, w, h, COLORS.panel, 0.9).setStrokeStyle(2, COLORS.panelLine);
+    drawPanel(this, x0 + w / 2, top + h / 2, w, h, { material: 'parchment', radius: 8, grain: false });
     const item = this.inspect ? itemById(this.inspect.itemId) : null;
     if (!this.inspect || !item) {
       this.add
         .text(x0 + w / 2, top + h / 2, 'Tap a slot or pack item to inspect it.', {
           fontFamily: FONTS.body,
           fontSize: '11px',
-          color: COLORS.textDim,
+          color: '#5a4c34',
+          fontStyle: 'italic',
           align: 'center',
           wordWrap: { width: w - 20 },
         })
         .setOrigin(0.5);
       return;
     }
-    this.add.text(x0 + 10, top + 6, item.name, { fontFamily: FONTS.body, fontSize: '12px', color: '#e8e4d8' }).setOrigin(0, 0);
+    const style = item.slot !== 'weapon' ? armorStyle(item.armorType) : null;
+    const iconX = x0 + 20;
     this.add
-      .text(x0 + 10, top + 22, bonusLine(item), { fontFamily: FONTS.body, fontSize: '11px', color: '#d9b968' })
+      .rectangle(iconX, top + 18, 28, 28, style ? style.base : MATERIALS.slate.light, 1)
+      .setStrokeStyle(2, style ? style.border : COLORS.gold);
+    this.add.image(iconX, top + 18, slotIconTexture(item.slot)).setDisplaySize(18, 18).setTint(0xf5ecd8);
+    const textX = x0 + 40;
+    this.add.text(textX, top + 4, item.name, { fontFamily: FONTS.body, fontSize: '12px', color: '#2c2010' }).setOrigin(0, 0);
+    this.add
+      .text(textX, top + 20, style ? `${style.label} armor  •  ${bonusLine(item)}` : bonusLine(item), {
+        fontFamily: FONTS.body,
+        fontSize: '10px',
+        color: '#7a4a1c',
+      })
       .setOrigin(0, 0);
     this.add
-      .text(x0 + 10, top + 38, item.flavor ?? '', {
+      .text(x0 + 10, top + 40, item.flavor ?? '', {
         fontFamily: FONTS.body,
         fontSize: '9px',
-        color: COLORS.textDim,
+        color: '#5a4c34',
+        fontStyle: 'italic',
         wordWrap: { width: w - 20 },
         lineSpacing: 2,
       })
@@ -518,12 +555,15 @@ export default class CharacterScene extends Phaser.Scene {
     const rowTop = top + 30;
     const rowH = 22;
     const rowW = Math.min(600, width - 24);
+    const detailH = 100;
+    const detailTop = rowTop + tree.length * (rowH + 2) + 6;
+    drawPanel(this, cx, (rowTop + detailTop + detailH) / 2, rowW + 10, detailTop + detailH - rowTop + 8, { material: 'slate', radius: 10 });
+
     tree.forEach((def, i) => {
       const y = rowTop + i * (rowH + 2) + rowH / 2;
       this.buildSkillRow(classId, def, cx, y, rowW, rowH);
     });
 
-    const detailTop = rowTop + tree.length * (rowH + 2) + 6;
     this.renderSkillDetail(classId, cx, rowW, detailTop);
   }
 
@@ -532,8 +572,8 @@ export default class CharacterScene extends Phaser.Scene {
     const unlocked = isUnlocked(this.state, classId, def.id);
     const selected = this.inspectSkill?.skillId === def.id;
     const row = this.add
-      .rectangle(cx, y, w, h, COLORS.panel, unlocked ? 0.92 : 0.55)
-      .setStrokeStyle(selected ? 2 : 1, selected ? 0xffffff : COLORS.panelLine);
+      .rectangle(cx, y, w, h, def.capstone ? MATERIALS.wood.base : MATERIALS.slate.base, unlocked ? 0.94 : 0.55)
+      .setStrokeStyle(selected ? 2 : 1, selected ? 0xffffff : def.capstone ? COLORS.gold : MATERIALS.slate.light);
     row.setInteractive({ useHandCursor: true });
     row.on('pointerup', () => {
       this.inspectSkill = { classId, skillId: def.id };
@@ -584,13 +624,13 @@ export default class CharacterScene extends Phaser.Scene {
   // duration) — mirrors the Gear tab's tap-to-inspect detail panel.
   renderSkillDetail(classId, cx, w, top) {
     const h = 100;
-    this.add.rectangle(cx, top + h / 2, w, h, COLORS.panel, 0.9).setStrokeStyle(2, COLORS.panelLine);
+    drawPanel(this, cx, top + h / 2, w, h, { material: 'parchment', radius: 8, grain: false });
     const def = this.inspectSkill?.classId === classId ? getTree(classId).find((s) => s.id === this.inspectSkill.skillId) : null;
     const x0 = cx - w / 2 + 10;
     if (!def) {
       this.add
         .text(cx, top + h / 2, 'Tap a skill above to see its full description.', {
-          fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim, align: 'center', wordWrap: { width: w - 20 },
+          fontFamily: FONTS.body, fontSize: '11px', color: '#5a4c34', fontStyle: 'italic', align: 'center', wordWrap: { width: w - 20 },
         })
         .setOrigin(0.5);
       return h;
@@ -598,7 +638,7 @@ export default class CharacterScene extends Phaser.Scene {
     if (def.icon) {
       this.add.image(x0 + 14, top + 20, iconTexture(def.icon)).setDisplaySize(26, 26).setTint(iconTint(def));
     }
-    this.add.text(x0 + 32, top + 8, def.name, { fontFamily: FONTS.body, fontSize: '12px', color: '#e8e4d8' }).setOrigin(0, 0);
+    this.add.text(x0 + 32, top + 8, def.name, { fontFamily: FONTS.body, fontSize: '12px', color: '#2c2010' }).setOrigin(0, 0);
     const rank = rankOf(this.state, def.id);
     const statLine = def.type === 'passive'
       ? 'Passive — always active'
@@ -608,12 +648,12 @@ export default class CharacterScene extends Phaser.Scene {
           def.cast ? `${def.cast}s cast` : null,
           def.cd ? `${def.cd}s cooldown` : null,
         ].filter(Boolean).join('  •  ');
-    this.add.text(x0 + 32, top + 23, statLine, { fontFamily: FONTS.body, fontSize: '9px', color: '#d9b968' }).setOrigin(0, 0);
+    this.add.text(x0 + 32, top + 23, statLine, { fontFamily: FONTS.body, fontSize: '9px', color: '#7a4a1c' }).setOrigin(0, 0);
     this.add
       .text(x0, top + 38, def.effect ?? '', {
         fontFamily: FONTS.body,
         fontSize: '9px',
-        color: COLORS.textDim,
+        color: '#5a4c34',
         wordWrap: { width: w - 20 },
         lineSpacing: 2,
       })
@@ -694,13 +734,13 @@ export default class CharacterScene extends Phaser.Scene {
       const row = Math.floor(i / cols);
       const x = 12 + col * (cardW + gap) + cardW / 2;
       const y = top + row * (cardH + gap) + cardH / 2;
-      const box = this.add.rectangle(x, y, cardW, cardH, COLORS.panel, 0.94).setStrokeStyle(2, COLORS.panelLine);
+      const box = this.add.rectangle(x, y, cardW, cardH, MATERIALS.parchment.base, 0.94).setStrokeStyle(2, MATERIALS.parchment.edge);
       box.setInteractive({ useHandCursor: true });
       this.add
         .text(x, y, c.title, {
           fontFamily: FONTS.body,
           fontSize: '11px',
-          color: '#e8e4d8',
+          color: '#2c2010',
           align: 'center',
           wordWrap: { width: cardW - 14 },
         })

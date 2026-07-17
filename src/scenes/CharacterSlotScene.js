@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS, ROW, SHEET_COLS } from '../config.js';
 import { makeTextButton, starfield } from '../ui/widgets.js';
+import { MATERIALS, drawPanel } from '../ui/theme.js';
 import { campaignById } from '../data/campaigns.js';
 import { kindredById } from '../data/kindreds.js';
 import { classById } from '../data/classes.js';
@@ -73,7 +74,7 @@ export default class CharacterSlotScene extends Phaser.Scene {
 
   buildSlotCard(character, index, cx, y, w, h) {
     if (!character) {
-      const card = this.add.rectangle(cx, y, w, h, 0x0a0e1e, 0.7).setStrokeStyle(2, COLORS.panelLine, 0.6);
+      const card = this.add.rectangle(cx, y, w, h, MATERIALS.slate.dark, 0.75).setStrokeStyle(2, MATERIALS.slate.light, 0.7);
       card.setInteractive({ useHandCursor: true });
       this.add.text(cx, y, '+  Create Character', { fontFamily: FONTS.body, fontSize: h < 64 ? '14px' : '16px', color: '#9aa4bc' }).setOrigin(0.5);
       // slot label lives in the corner so it can't collide with the CTA on
@@ -90,7 +91,7 @@ export default class CharacterSlotScene extends Phaser.Scene {
 
     const kindred = kindredById(character.kindred);
     const klass = classById(character.classId);
-    const card = this.add.rectangle(cx, y, w, h, COLORS.panel, 0.94).setStrokeStyle(2, COLORS.panelLine);
+    const card = this.add.rectangle(cx, y, w, h, MATERIALS.wood.base, 0.94).setStrokeStyle(2, COLORS.gold);
     card.setInteractive({ useHandCursor: true });
 
     const spr = this.add.sprite(cx - w / 2 + 40, y, kindred.sheet, ROW.walkDown * SHEET_COLS);
@@ -150,10 +151,7 @@ export default class CharacterSlotScene extends Phaser.Scene {
     const cx = width / 2;
     const cy = height / 2;
     const veil = this.add.rectangle(cx, cy, width, height, 0x05060f, 0.88).setInteractive().setDepth(300);
-    const panel = this.add
-      .rectangle(cx, cy, Math.min(340, width - 40), 170, COLORS.panel, 0.98)
-      .setStrokeStyle(2, COLORS.panelLine)
-      .setDepth(301);
+    const panel = drawPanel(this, cx, cy, Math.min(340, width - 40), 170, { material: 'wood', radius: 10, depth: 301 });
     const t = this.add
       .text(cx, cy - 38, `Release ${kindred.name} ${klass.name}?\nThis character and all progress will be lost.`, {
         fontFamily: FONTS.body,
