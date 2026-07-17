@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS, ROW, SHEET_COLS } from '../config.js';
 import { makeTextButton, starfield } from '../ui/widgets.js';
+import { MATERIALS, drawPanel } from '../ui/theme.js';
 import { KINDREDS } from '../data/kindreds.js';
 import { CLASSES } from '../data/classes.js';
 import { newGameState, setState } from '../systems/GameState.js';
@@ -64,7 +65,7 @@ export default class CreationScene extends Phaser.Scene {
 
     KINDREDS.forEach((k, i) => {
       const y = top + ch / 2 + i * (ch + gap);
-      const card = this.add.rectangle(cx, y, cw, ch, COLORS.panel, 0.94).setStrokeStyle(2, COLORS.panelLine);
+      const card = this.add.rectangle(cx, y, cw, ch, MATERIALS.wood.base, 0.94).setStrokeStyle(2, COLORS.gold);
       card.setInteractive({ useHandCursor: true });
 
       // walking preview sprite
@@ -133,7 +134,7 @@ export default class CreationScene extends Phaser.Scene {
       const row = Math.floor(i / cols);
       const x = cx - gridW / 2 + cw / 2 + col * (cw + gap);
       const y = top + ch / 2 + row * (ch + gap);
-      const card = this.add.rectangle(x, y, cw, ch, COLORS.panel, 0.94).setStrokeStyle(2, COLORS.panelLine);
+      const card = this.add.rectangle(x, y, cw, ch, MATERIALS.wood.base, 0.94).setStrokeStyle(2, COLORS.gold);
       card.setInteractive({ useHandCursor: true });
       this.add
         .text(x, y - ch / 2 + 8, c.name, { fontFamily: FONTS.body, fontSize: '16px', color: '#e8e4d8' })
@@ -183,7 +184,7 @@ export default class CreationScene extends Phaser.Scene {
     items.push(veil);
 
     const panelW = Math.min(520, width - 24);
-    const panel = this.add.rectangle(cx, height / 2, panelW, Math.min(360, height - 20), COLORS.panel, 0.97).setStrokeStyle(2, 0xd9b968).setDepth(301);
+    const panel = drawPanel(this, cx, height / 2, panelW, Math.min(360, height - 20), { material: 'wood', radius: 12, rivets: true, depth: 301 });
     items.push(panel);
     const panelTop = height / 2 - panel.height / 2;
 
@@ -206,7 +207,7 @@ export default class CreationScene extends Phaser.Scene {
 
     // the little stage
     const stageY = height / 2 + 26;
-    const stage = this.add.rectangle(cx, stageY, panelW - 40, 120, 0x0a0e1e, 0.9).setStrokeStyle(1, COLORS.panelLine).setDepth(301);
+    const stage = this.add.rectangle(cx, stageY, panelW - 40, 120, MATERIALS.slate.dark, 0.9).setStrokeStyle(1, MATERIALS.slate.light).setDepth(301);
     items.push(stage);
     const caster = this.add.sprite(cx - 40, stageY + 30, kindred.sheet, ROW.walkDown * SHEET_COLS).setDepth(303);
     caster.play(`${kindred.sheet}-idle-down`);
@@ -275,6 +276,14 @@ export default class CreationScene extends Phaser.Scene {
     // sling") get it in the pack too, so both can be equipped and compared
     const alt = ALT_WEAPON_BY_CLASS[klass.id];
     if (alt) state.inventory.push(alt);
+    // a full chest/gloves/boots set per armor weight class, so the
+    // heavy/light/robe paperdoll looks (src/ui/theme.js ARMOR_STYLES) can be
+    // tried on and compared side by side
+    state.inventory.push(
+      'steppe_cloak', 'herders_bracers', 'steppe_boots',
+      'trial_iron_cuirass', 'trial_iron_gauntlets', 'trial_iron_greaves',
+      'trial_woven_robe', 'trial_sleeve_wraps', 'trial_cloth_slippers'
+    );
     state.potions = { hp: 9, mp: 9 };
     setState(this, state);
     this.scene.start('World');

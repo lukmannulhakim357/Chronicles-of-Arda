@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS } from '../config.js';
 import { makeTextButton, starfield, toast } from '../ui/widgets.js';
+import { MATERIALS } from '../ui/theme.js';
 import { CAMPAIGNS, isCampaignUnlocked } from '../data/campaigns.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 
@@ -68,8 +69,8 @@ export default class CampaignSelectScene extends Phaser.Scene {
   }
 
   buildCampaignCard(c, index, unlocked, x, y, w, h) {
-    const bg = this.add.rectangle(x, y, w, h, unlocked ? COLORS.panel : 0x0a0a12, unlocked ? 0.94 : 0.72);
-    bg.setStrokeStyle(2, unlocked ? COLORS.gold : 0x22283a);
+    const bg = this.add.rectangle(x, y, w, h, unlocked ? MATERIALS.wood.base : MATERIALS.slate.dark, unlocked ? 0.94 : 0.72);
+    bg.setStrokeStyle(2, unlocked ? COLORS.gold : MATERIALS.slate.light, unlocked ? 1 : 0.5);
 
     if (unlocked) {
       this.add

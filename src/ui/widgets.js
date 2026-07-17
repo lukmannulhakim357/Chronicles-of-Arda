@@ -1,13 +1,22 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS } from '../config.js';
+import { MATERIALS } from './theme.js';
 
 // Small touch-friendly UI helpers shared by menu/creation/UI scenes.
 // All hit areas are at least 44px tall.
 
+// A warm wood-grain button (drop-shadow + bevel highlight) instead of the
+// flat navy rectangle every button in the game used before — since every
+// menu/dialogue/pause button already goes through this one helper, this
+// single change reskins the whole game's buttons at once.
 export function makeTextButton(scene, x, y, width, height, label, onTap, opts = {}) {
+  const fill = opts.fill ?? MATERIALS.wood.base;
+  const fillDown = opts.fillDown ?? MATERIALS.wood.dark;
   const g = scene.add.container(x, y);
-  const bg = scene.add.rectangle(0, 0, width, height, opts.fill ?? COLORS.panel, opts.fillAlpha ?? 0.92);
-  bg.setStrokeStyle(2, opts.stroke ?? COLORS.panelLine);
+  const shadow = scene.add.rectangle(2, 3, width, height, 0x000000, 0.32);
+  const bg = scene.add.rectangle(0, 0, width, height, fill, opts.fillAlpha ?? 0.95);
+  bg.setStrokeStyle(2, opts.stroke ?? MATERIALS.wood.edge);
+  const sheen = scene.add.rectangle(0, -height / 2 + Math.max(2, height * 0.16), width - 6, Math.max(2, height * 0.3), 0xffffff, 0.12);
   const txt = scene.add
     .text(0, 0, label, {
       fontFamily: FONTS.body,
@@ -17,18 +26,21 @@ export function makeTextButton(scene, x, y, width, height, label, onTap, opts = 
       wordWrap: opts.wrap ? { width: width - 24 } : undefined,
     })
     .setOrigin(0.5);
-  g.add([bg, txt]);
+  g.add([shadow, bg, sheen, txt]);
   g.setSize(width, height);
   bg.setInteractive({ useHandCursor: true });
   bg.on('pointerdown', () => {
-    bg.setFillStyle(opts.fillDown ?? 0x1c2a50, 1);
+    bg.setFillStyle(fillDown, 1);
+    sheen.setVisible(false);
   });
   bg.on('pointerup', () => {
-    bg.setFillStyle(opts.fill ?? COLORS.panel, opts.fillAlpha ?? 0.92);
+    bg.setFillStyle(fill, opts.fillAlpha ?? 0.95);
+    sheen.setVisible(true);
     onTap?.();
   });
   bg.on('pointerout', () => {
-    bg.setFillStyle(opts.fill ?? COLORS.panel, opts.fillAlpha ?? 0.92);
+    bg.setFillStyle(fill, opts.fillAlpha ?? 0.95);
+    sheen.setVisible(true);
   });
   g.bg = bg;
   g.label = txt;

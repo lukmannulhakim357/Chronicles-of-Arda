@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONTS } from '../config.js';
 import { makeTextButton, starfield, toast } from '../ui/widgets.js';
+import { MATERIALS, drawPanel } from '../ui/theme.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { promptText } from '../ui/textPrompt.js';
 
@@ -90,10 +91,7 @@ export default class TitleScene extends Phaser.Scene {
     const panelH = Math.min(height - 70, 96 + profiles.length * (rowH + rowGap));
 
     const veil = this.add.rectangle(cx, height / 2, width, height, 0x05060f, 0.85).setInteractive().setDepth(200);
-    const panel = this.add
-      .rectangle(cx, height / 2, panelW, panelH, COLORS.panel, 0.98)
-      .setStrokeStyle(2, COLORS.panelLine)
-      .setDepth(201);
+    const panel = drawPanel(this, cx, height / 2, panelW, panelH, { material: 'wood', radius: 12, rivets: true, depth: 201 });
     const items = [veil, panel];
 
     const top = height / 2 - panelH / 2;
@@ -107,8 +105,8 @@ export default class TitleScene extends Phaser.Scene {
     let y = top + 54;
     profiles.forEach((p) => {
       const row = this.add
-        .rectangle(cx, y + rowH / 2, panelW - 24, rowH, 0x0d1226, 1)
-        .setStrokeStyle(1, COLORS.panelLine)
+        .rectangle(cx, y + rowH / 2, panelW - 24, rowH, MATERIALS.slate.base, 0.92)
+        .setStrokeStyle(1, MATERIALS.slate.light)
         .setDepth(202);
       row.setInteractive({ useHandCursor: true });
       const name = this.add
@@ -156,10 +154,7 @@ export default class TitleScene extends Phaser.Scene {
     const cx = width / 2;
     const cy = height / 2;
     const veil = this.add.rectangle(cx, cy, width, height, 0x05060f, 0.9).setInteractive().setDepth(300);
-    const panel = this.add
-      .rectangle(cx, cy, Math.min(340, width - 40), 170, COLORS.panel, 0.98)
-      .setStrokeStyle(2, COLORS.panelLine)
-      .setDepth(301);
+    const panel = drawPanel(this, cx, cy, Math.min(340, width - 40), 170, { material: 'wood', radius: 10, depth: 301 });
     const t = this.add
       .text(cx, cy - 40, `Delete profile "${p.name}"?\nAll its characters & progress will be lost.`, {
         fontFamily: FONTS.body,

@@ -39,6 +39,59 @@ export const ITEMS = {
     flavor: 'Worn leather bracers, stiff from years of hauling and herding.',
   },
 
+  // Trial armor — one full chest/gloves/boots set per weight class (heavy
+  // plate, light hide, robe cloth), granted only in the Training Grounds so
+  // the three armorType looks (src/ui/theme.js ARMOR_STYLES) can actually be
+  // tried on and compared side by side. Not tied to any quest.
+  trial_iron_cuirass: {
+    id: 'trial_iron_cuirass',
+    name: 'Trial Iron Cuirass',
+    slot: 'chest',
+    armorType: 'heavy',
+    bonus: { VIT: 4 },
+    flavor: 'Riveted plate, cold and heavy — built to stop a blade, not to run in.',
+  },
+  trial_iron_gauntlets: {
+    id: 'trial_iron_gauntlets',
+    name: 'Trial Iron Gauntlets',
+    slot: 'gloves',
+    armorType: 'heavy',
+    bonus: { STR: 3 },
+    flavor: 'Articulated steel plates over mail — a smith\'s idea of a glove.',
+  },
+  trial_iron_greaves: {
+    id: 'trial_iron_greaves',
+    name: 'Trial Iron Greaves',
+    slot: 'boots',
+    armorType: 'heavy',
+    bonus: { VIT: 2 },
+    flavor: 'Solid steel shin-guards, buckled over the boot proper.',
+  },
+  trial_woven_robe: {
+    id: 'trial_woven_robe',
+    name: 'Trial Woven Robe',
+    slot: 'chest',
+    armorType: 'robe',
+    bonus: { MAG: 4 },
+    flavor: 'Dyed cloth and old knotwork — meant to hold a working, not a blow.',
+  },
+  trial_sleeve_wraps: {
+    id: 'trial_sleeve_wraps',
+    name: 'Trial Sleeve Wraps',
+    slot: 'gloves',
+    armorType: 'robe',
+    bonus: { MAG: 2 },
+    flavor: 'Loose cloth wraps, light enough not to fumble a casting gesture.',
+  },
+  trial_cloth_slippers: {
+    id: 'trial_cloth_slippers',
+    name: 'Trial Cloth Slippers',
+    slot: 'boots',
+    armorType: 'robe',
+    bonus: { MAG: 1, DEX: 1 },
+    flavor: 'Soft-soled and silent — no caster wants their footsteps heard.',
+  },
+
   // First weapons — granted in Waypoint 3 ("The Great Forest"), one per
   // class, matching each class's weapon in data/classes.js. Concept doc
   // §16.4 models weapons with their own Attack/Attack-Rate stats separate
