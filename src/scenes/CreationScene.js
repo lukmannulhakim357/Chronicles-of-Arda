@@ -7,7 +7,7 @@ import { newGameState, setState } from '../systems/GameState.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { getTree } from '../data/skills.js';
 import { playUltimate } from '../fx/skillfx.js';
-import { playWeaponSwing } from '../fx/weapons.js';
+import { playWeaponSwing, animFamilyOf } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, ALT_WEAPON_BY_CLASS } from '../data/items.js';
 import { ensureSkillIconTextures, iconTexture, iconTint } from '../fx/skillicons.js';
 import { derivedStats } from '../data/classes.js';
@@ -222,9 +222,10 @@ export default class CreationScene extends Phaser.Scene {
     // loop the ultimate until the player decides — the caster swings their
     // class's own weapon and plays the strike animation, same as in-game
     let dead = false;
+    const family = animFamilyOf(WEAPON_BY_CLASS[klass.id]);
     const loop = () => {
       if (dead) return;
-      caster.play(`${kindred.sheet}-slash-down`, true);
+      caster.play(`${kindred.sheet}-${family}-down`, true);
       playWeaponSwing(this, caster, WEAPON_BY_CLASS[klass.id], 'down', { skill: true });
       caster.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
         if (!dead) caster.play(`${kindred.sheet}-idle-down`);

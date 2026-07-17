@@ -23,6 +23,19 @@ export function weaponShapeOf(itemId) {
   return SHAPES[itemId] ?? null;
 }
 
+// Which body-sheet animation row a weapon's holder should play — the sheet
+// already has real thrust (spear-lunge) and shoot (bow draw-and-loose) rows
+// (BootScene.js), so a weapon's *shape* decides which pose the character
+// actually plays instead of every attack reusing the sword's slash.
+const ANIM_FAMILY = {
+  spear: 'thrust',
+  bow: 'shoot',
+};
+
+export function animFamilyOf(itemId) {
+  return ANIM_FAMILY[weaponShapeOf(itemId)] ?? 'slash';
+}
+
 export function ensureWeaponTextures(scene) {
   const mk = (key, w, h, draw) => {
     if (scene.textures.exists(key)) return;
@@ -98,14 +111,45 @@ export function ensureWeaponTextures(scene) {
     g.fillStyle(0xf2d06b, 1);
     g.fillCircle(2, 10, 3); // bell mouth
   });
+  mk('fxw-shield', 24, 24, (g) => {
+    g.fillStyle(0x6b4a2a, 1);
+    g.fillCircle(12, 12, 11); // wooden face
+    g.fillStyle(0x8a93a6, 1);
+    g.fillCircle(12, 12, 8); // iron rim-band
+    g.fillStyle(0xd9b968, 1);
+    g.fillCircle(12, 12, 3); // boss
+    g.lineStyle(2, 0x2a1f14, 1);
+    g.strokeCircle(12, 12, 11);
+  });
 }
 
-const HAND = {
+// One hand-offset table per body pose — the slash/thrust/shoot animations
+// hold the arm very differently, so a single fixed offset (the old
+// approach) only ever looked "attached" for the slash pose and left every
+// other weapon floating in a generic spot regardless of the actual pose.
+const HAND_SLASH = {
   right: { x: 12, y: -2, flip: false, dx: 1, dy: 0 },
   left: { x: -12, y: -2, flip: true, dx: -1, dy: 0 },
   down: { x: 10, y: 2, flip: false, dx: 0, dy: 1 },
   up: { x: -10, y: -6, flip: true, dx: 0, dy: -1 },
 };
+const HAND_THRUST = {
+  right: { x: 20, y: -3, flip: false, dx: 1, dy: 0 },
+  left: { x: -20, y: -3, flip: true, dx: -1, dy: 0 },
+  down: { x: 4, y: 15, flip: false, dx: 0, dy: 1 },
+  up: { x: -4, y: -17, flip: true, dx: 0, dy: -1 },
+};
+const HAND_SHOOT = {
+  right: { x: 13, y: -5, flip: false, dx: 1, dy: 0 },
+  left: { x: -13, y: -5, flip: true, dx: -1, dy: 0 },
+  down: { x: 0, y: 8, flip: false, dx: 0, dy: 1 },
+  up: { x: 0, y: -11, flip: true, dx: 0, dy: -1 },
+};
+function handTableFor(family) {
+  if (family === 'thrust') return HAND_THRUST;
+  if (family === 'shoot') return HAND_SHOOT;
+  return HAND_SLASH;
+}
 
 function arrow(scene, x, y, dx, dy, delay = 0, dist = 68) {
   const a = scene.add
@@ -157,7 +201,8 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
   const shape = weaponShapeOf(itemId);
   if (!shape) return;
   ensureWeaponTextures(scene);
-  const hand = HAND[facing] ?? HAND.down;
+  const handTable = handTableFor(animFamilyOf(itemId));
+  const hand = handTable[facing] ?? handTable.down;
   const img = spawnWeapon(scene, player, shape, hand, skill);
   const x = img.x;
   const y = img.y;
@@ -196,7 +241,9 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
       });
     }
   } else if (shape === 'spear') {
-    // a straight thrust down the aim line, not an arc
+    // a straight thrust down the aim line, not an arc — the texture's tip
+    // points "up" at rotation 0, so it has to turn to actually face the aim
+    img.rotation = Math.atan2(aim.dy, aim.dx) + Math.PI / 2;
     scene.tweens.add({
       targets: img,
       x: x + aim.dx * (skill ? 26 : 16),
@@ -210,6 +257,7 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
       // a second, deeper thrust — the skill is two jabs, not one
       const img2 = spawnWeapon(scene, player, shape, hand, true);
       img2.setAlpha(0);
+      img2.rotation = img.rotation;
       scene.tweens.add({
         targets: img2,
         delay: 200,
@@ -221,8 +269,33 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
         onComplete: () => img2.destroy(),
       });
     }
-  } else if (shape === 'bow' || shape === 'sling') {
-    const shoot = shape === 'bow' ? arrow : pebble;
+  } else if (shape === 'bow') {
+    // held steady in both hands, stave perpendicular to the aim line, while
+    // the shoot animation plays; the nocked arrow visibly draws back before
+    // it looses — not a swing, a hold-and-release
+    img.setOrigin(0.5, 0.5).setPosition(x, y).setRotation(Math.atan2(aim.dy, aim.dx) + Math.PI / 2);
+    const drawDist = skill ? 12 : 8;
+    const drawMs = skill ? 420 : 300;
+    const nock = scene.add
+      .rectangle(x, y, 12, 2, 0xe8dcc0, 1)
+      .setDepth(img.depth + 1)
+      .setRotation(Math.atan2(aim.dy, aim.dx));
+    scene.tweens.add({ targets: nock, x: x - aim.dx * drawDist, y: y - aim.dy * drawDist, duration: drawMs, ease: 'Sine.easeIn' });
+    scene.tweens.add({ targets: img, scaleX: 1.1, scaleY: 0.92, duration: drawMs, ease: 'Sine.easeIn' });
+    scene.time.delayedCall(drawMs, () => {
+      nock.destroy();
+      scene.tweens.add({ targets: img, scaleX: 1, scaleY: 1, duration: 100, ease: 'Back.easeOut' });
+      if (skill) {
+        // volley: three shots fanned out around the aim line
+        arrow(scene, x, y, aim.dx, aim.dy, 0, aim.dist);
+        arrow(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 80, aim.dist);
+        arrow(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 160, aim.dist);
+      } else {
+        arrow(scene, x, y, aim.dx, aim.dy, 0, aim.dist);
+      }
+    });
+    scene.time.delayedCall(drawMs + 260, () => scene.tweens.add({ targets: img, alpha: 0, duration: 160, onComplete: () => img.destroy() }));
+  } else if (shape === 'sling') {
     img.rotation = Math.atan2(hand.dy, hand.dx) * 0.5;
     scene.tweens.add({
       targets: img,
@@ -234,11 +307,11 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
     });
     if (skill) {
       // volley: three shots fanned out around the aim line
-      shoot(scene, x, y, aim.dx, aim.dy, 90, aim.dist);
-      shoot(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 170, aim.dist);
-      shoot(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 250, aim.dist);
+      pebble(scene, x, y, aim.dx, aim.dy, 90, aim.dist);
+      pebble(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 170, aim.dist);
+      pebble(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 250, aim.dist);
     } else {
-      shoot(scene, x, y, aim.dx, aim.dy, 90, aim.dist); // every shot looses a projectile
+      pebble(scene, x, y, aim.dx, aim.dy, 90, aim.dist); // every shot looses a projectile
     }
   } else {
     // staff / harp / talisman — raise it, let the focus answer
@@ -272,4 +345,87 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
       },
     });
   }
+}
+
+// Shield Slam — a shield, not the equipped sword, drives forward into the
+// target. Uses the thrust pose/hand offset (the body is lunging forward,
+// same mechanic as a spear jab) so it reads as a bash, not another swing.
+export function playShieldBash(scene, player, facing, { targetPos = null } = {}) {
+  ensureWeaponTextures(scene);
+  const hand = HAND_THRUST[facing] ?? HAND_THRUST.down;
+  const x = player.x + hand.x;
+  const y = player.y + hand.y;
+  let aim = { dx: hand.dx, dy: hand.dy };
+  if (targetPos) {
+    const ang = Math.atan2(targetPos.y - y, targetPos.x - x);
+    aim = { dx: Math.cos(ang), dy: Math.sin(ang) };
+  }
+  const img = scene.add
+    .image(x, y, 'fxw-shield')
+    .setOrigin(0.5, 0.5)
+    .setDepth(hand.dy < 0 ? player.y - 1 : player.y + 1)
+    .setTint(0xfff2c8)
+    .setScale(1.15);
+  scene.tweens.add({
+    targets: img,
+    x: x + aim.dx * 30,
+    y: y + aim.dy * 30,
+    duration: 180,
+    ease: 'Quad.easeIn',
+    onComplete: () => {
+      // a hard flat burst where the shield lands — a bash, not a cut
+      const spark = scene.add.circle(img.x, img.y, 4, 0xffffff, 0.9).setDepth(img.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
+      scene.tweens.add({ targets: spark, radius: 22, alpha: 0, duration: 260, onComplete: () => spark.destroy() });
+      scene.tweens.add({
+        targets: img,
+        x: img.x + aim.dx * 14,
+        y: img.y + aim.dy * 14,
+        alpha: 0,
+        duration: 220,
+        delay: 40,
+        onComplete: () => img.destroy(),
+      });
+    },
+  });
+}
+
+// Whirlwind — the equipped weapon actually orbits the player in a full
+// circle instead of a single-direction crescent, so the description's "spin
+// hits everyone nearby" reads true instead of looking like one more swing.
+export function playWhirlwindSpin(scene, player, itemId) {
+  const shape = weaponShapeOf(itemId) ?? 'sword';
+  ensureWeaponTextures(scene);
+  const orbitR = 26;
+  const img = scene.add
+    .image(player.x + orbitR, player.y, `fxw-${shape}`)
+    .setOrigin(0.5, 0.95)
+    .setDepth(player.y + 1)
+    .setTint(0xfff2c8)
+    .setScale(1.15);
+  const spin = { a: 0 };
+  scene.tweens.add({
+    targets: spin,
+    a: Math.PI * 2,
+    duration: 560,
+    ease: 'Sine.easeInOut',
+    onUpdate: () => {
+      img.x = player.x + Math.cos(spin.a) * orbitR;
+      img.y = player.y + Math.sin(spin.a) * orbitR * 0.6; // squashed for the top-down angle
+      img.rotation = spin.a + Math.PI / 2;
+      img.setDepth(Math.sin(spin.a) >= 0 ? player.y + 1 : player.y - 1);
+    },
+    onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() }),
+  });
+  // a full ring visibly sweeps outward with the spin — everyone nearby
+  // takes the hit, not just whatever was standing in one direction
+  const ring = scene.add.circle(player.x, player.y, 6).setStrokeStyle(3, 0xd9d9e8, 0.9).setDepth(player.y + 2).setBlendMode(Phaser.BlendModes.ADD);
+  scene.tweens.add({
+    targets: ring,
+    radius: 34,
+    alpha: 0,
+    duration: 560,
+    ease: 'Sine.easeOut',
+    onUpdate: () => ring.setStrokeStyle(3, 0xd9d9e8, ring.alpha),
+    onComplete: () => ring.destroy(),
+  });
 }

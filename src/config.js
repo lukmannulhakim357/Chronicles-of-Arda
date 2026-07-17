@@ -22,6 +22,10 @@ export const ROW = {
   slashLeft: 13,
   slashDown: 14,
   slashRight: 15,
+  shootUp: 16,
+  shootLeft: 17,
+  shootDown: 18,
+  shootRight: 19,
   hurt: 20,
 };
 

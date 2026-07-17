@@ -10,7 +10,7 @@ import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
-import { playWeaponSwing } from '../fx/weapons.js';
+import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 import { iconTint } from '../fx/skillicons.js';
@@ -303,7 +303,10 @@ export default class WorldScene extends Phaser.Scene {
     this.attacking = true;
     const target = this.pickEnemyTarget(this.getAttackRangePx(false));
     if (target) this.faceToward(target); // snap toward the auto-aimed enemy
-    this.player.play(`${this.sheet}-slash-${this.facing}`, true);
+    // the body plays the pose the equipped weapon actually calls for — a
+    // bow draws and looses, a spear lunges, everything else still swings
+    const family = animFamilyOf(this.state.equipment?.weapon);
+    this.player.play(`${this.sheet}-${family}-${this.facing}`, true);
     // equipped weapon appears in hand and swings with the attack; ranged
     // shots streak straight at the target, whatever the angle
     if (this.state.equipment?.weapon)
@@ -356,17 +359,25 @@ export default class WorldScene extends Phaser.Scene {
     this.skillCooldowns[id] = this.time.now + (def.cd ?? 0) * 1000;
     this.emitMp();
     this.attacking = true;
-    this.player.play(`${this.sheet}-slash-${this.facing}`, true);
+    // a skill is never a bare-handed shrug, even before the first weapon
+    // drop — fall back to the class's signature weapon so there's always a
+    // pose to play. Shield Slam always lunges (it's a bash, not a cut)
+    // regardless of what's actually equipped.
+    const skillWeapon = this.state.equipment?.weapon ?? WEAPON_BY_CLASS[this.state.classId];
+    const family = id === 'shield_slam' ? 'thrust' : animFamilyOf(skillWeapon);
+    this.player.play(`${this.sheet}-${family}-${this.facing}`, true);
     const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
     this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
 
-    // auto-aim first, then show the class's weapon in motion — the equipped
-    // one if carried, else the class's signature weapon (a skill is never a
-    // bare-handed shrug, even before the first weapon drop)
+    // auto-aim, then show the skill's weapon action — Shield Slam bashes
+    // with a shield instead of swinging whatever's equipped, Whirlwind
+    // spins the weapon in a full circle instead of one more arc, everything
+    // else just plays the equipped/class weapon's normal skill motion
     const aimed = this.pickEnemyTarget(this.getAttackRangePx(true));
     if (aimed) this.faceToward(aimed);
-    const skillWeapon = this.state.equipment?.weapon ?? WEAPON_BY_CLASS[this.state.classId];
-    if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
+    if (id === 'shield_slam') playShieldBash(this, this.player, this.facing, { targetPos: aimed });
+    else if (id === 'whirlwind') playWhirlwindSpin(this, this.player, skillWeapon);
+    else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one
