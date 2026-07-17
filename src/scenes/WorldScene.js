@@ -397,7 +397,7 @@ export default class WorldScene extends Phaser.Scene {
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one
-    if (def.capstone) playUltimate(this, this.state.classId, { x: this.player.x, y: this.player.y }, [], target);
+    if (def.capstone) playUltimate(this, this.state.classId, this.player, [], target, def);
     else playSkillFx(this, def, { x: this.player.x, y: this.player.y }, target, this.state.classId);
 
     // Summoner calls manifest an actual creature that follows and fights

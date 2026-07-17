@@ -221,6 +221,25 @@ function pebble(scene, x, y, dx, dy, delay = 0, dist = 68) {
   });
 }
 
+// the focus-tip glow + spell ring shared by every magic-focus weapon
+// (talisman, staff, and harp's skill-only chord resolution)
+function flareTip(scene, x, y, depth, skill = false) {
+  const tip = scene.add.image(x, y, 'glow').setScale(skill ? 0.55 : 0.3).setTint(0x9ac8ff).setBlendMode(Phaser.BlendModes.ADD).setDepth(depth);
+  scene.tweens.add({ targets: tip, scale: 0, alpha: 0, duration: 280, onComplete: () => tip.destroy() });
+  if (skill) {
+    const ringC = scene.add.circle(x, y, 6).setStrokeStyle(2, 0x9ac8ff, 0.9).setDepth(depth).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({
+      targets: ringC,
+      radius: 26,
+      alpha: 0,
+      duration: 380,
+      ease: 'Sine.easeOut',
+      onUpdate: () => ringC.setStrokeStyle(2, 0x9ac8ff, ringC.alpha),
+      onComplete: () => ringC.destroy(),
+    });
+  }
+}
+
 function spawnWeapon(scene, player, shape, hand, skill) {
   const img = scene.add
     .image(player.x + hand.x, player.y + hand.y, `fxw-${shape}`)
@@ -357,34 +376,59 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
     } else {
       pebble(scene, x, y, aim.dx, aim.dy, 90, aim.dist); // every shot looses a projectile
     }
+  } else if (shape === 'harp') {
+    // played, not swung — a quick strum (the strings wobble), a note pops
+    // off with it, and on a skill the chord resolves into a blast at the
+    // target instead of just fading
+    const baseRot = img.rotation;
+    scene.tweens.add({
+      targets: img,
+      rotation: baseRot + (hand.flip ? -0.22 : 0.22),
+      duration: 90,
+      yoyo: true,
+      repeat: 2,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        const note = scene.add
+          .text(img.x, img.y - 8, '♪', { fontFamily: 'serif', fontSize: '13px', color: '#f2d06b', stroke: '#05060f', strokeThickness: 2 })
+          .setOrigin(0.5)
+          .setDepth(img.depth + 1)
+          .setAlpha(0);
+        scene.tweens.add({ targets: note, alpha: { from: 0.9, to: 0 }, y: note.y - 20, duration: 500, ease: 'Sine.easeOut', onComplete: () => note.destroy() });
+        if (skill) flareTip(scene, img.x, img.y - 16, img.depth + 1, true);
+        scene.tweens.add({ targets: img, alpha: 0, duration: 240, onComplete: () => img.destroy() });
+      },
+    });
+  } else if (shape === 'staff') {
+    // raised, then swung forward like pointing the staff at the target —
+    // not just held up in place
+    scene.tweens.add({
+      targets: img,
+      y: y - (skill ? 12 : 7),
+      duration: 160,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        scene.tweens.add({
+          targets: img,
+          rotation: img.rotation + (hand.flip ? -0.5 : 0.5),
+          duration: skill ? 220 : 160,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            flareTip(scene, img.x, img.y - 16, img.depth + 1, skill);
+            scene.tweens.add({ targets: img, alpha: 0, duration: 240, onComplete: () => img.destroy() });
+          },
+        });
+      },
+    });
   } else {
-    // staff / harp / talisman — raise it, let the focus answer
+    // talisman (and the magic-flavored horn) — raise it, let the focus answer
     scene.tweens.add({
       targets: img,
       y: y - (skill ? 14 : 8),
       duration: 200,
       ease: 'Sine.easeOut',
       onComplete: () => {
-        const tip = scene.add
-          .image(img.x, img.y - 16, 'glow')
-          .setScale(skill ? 0.55 : 0.3)
-          .setTint(0x9ac8ff)
-          .setBlendMode(Phaser.BlendModes.ADD)
-          .setDepth(img.depth + 1);
-        scene.tweens.add({ targets: tip, scale: 0, alpha: 0, duration: 280, onComplete: () => tip.destroy() });
-        if (skill) {
-          // spell ring blooms from the focus on skill casts
-          const ringC = scene.add.circle(img.x, img.y - 16, 6).setStrokeStyle(2, 0x9ac8ff, 0.9).setDepth(img.depth + 1).setBlendMode(Phaser.BlendModes.ADD);
-          scene.tweens.add({
-            targets: ringC,
-            radius: 26,
-            alpha: 0,
-            duration: 380,
-            ease: 'Sine.easeOut',
-            onUpdate: () => ringC.setStrokeStyle(2, 0x9ac8ff, ringC.alpha),
-            onComplete: () => ringC.destroy(),
-          });
-        }
+        flareTip(scene, img.x, img.y - 16, img.depth + 1, skill);
         scene.tweens.add({ targets: img, alpha: 0, duration: 240, onComplete: () => img.destroy() });
       },
     });

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ensureWeaponTextures } from './weapons.js';
+import { ensureWeaponTextures, playWeaponSwing } from './weapons.js';
 
 // Skill & ultimate visual effects — all procedural (tweens, particles,
 // graphics) over the tiny 'glow'/'px-star' textures BootScene already
@@ -461,10 +461,50 @@ export function playSkillFx(scene, def, caster, target, classId = null) {
   }
 }
 
+// ---------- long-buff capstones: keep performing for the buff's real
+// duration, not just a one-shot flourish ----------
+// Anthem of Valinor and Athelas Bloom hold a buff for many seconds — the
+// Loresinger should still be visibly playing the harp with notes drifting
+// out the whole time, and the Herbmaster's staff should stay raised and
+// pulsing, not freeze after one 2.4s beat. Only runs against the real
+// player sprite in live play (`caster.play` exists) — the class-selection
+// preview loops the whole ultimate externally already, so it's skipped
+// there (no `def` is passed in that call site).
+function sustainLoresingerSong(scene, caster, def) {
+  if (typeof caster.play !== 'function') return;
+  const durationMs = (def.buffDuration ?? 12) * 1000;
+  const beatMs = 1100;
+  const beats = Math.max(0, Math.floor((durationMs - 500) / beatMs));
+  for (let i = 1; i <= beats; i++) {
+    scene.time.delayedCall(i * beatMs, () => {
+      if (!caster.active) return;
+      playWeaponSwing(scene, caster, 'travelers_harp', 'down', { skill: false });
+      musicNotes(scene, caster.x, caster.y - 14, { count: 3, spread: 26 });
+    });
+  }
+}
+
+function sustainHerbmasterStaff(scene, caster, def) {
+  if (typeof caster.play !== 'function') return;
+  const durationMs = (def.buffDuration ?? 10) * 1000;
+  const beatMs = 1500;
+  const beats = Math.max(0, Math.floor((durationMs - 500) / beatMs));
+  for (let i = 1; i <= beats; i++) {
+    scene.time.delayedCall(i * beatMs, () => {
+      if (!caster.active) return;
+      playWeaponSwing(scene, caster, 'woodland_staff', 'down', { skill: false });
+      leafRise(scene, caster.x, caster.y, { tint: 0x7fe89a, count: 3, spread: 16 });
+    });
+  }
+}
+
 // ---------- capstones: one epic multi-beat sequence per class ----------
 // Returns the sequence's rough duration (ms) so callers can loop previews.
+// `def` (optional) is the skill definition — when present (live gameplay,
+// not the class-selection preview), long-buff capstones keep performing
+// for def.buffDuration instead of stopping after the initial flourish.
 
-export function playUltimate(scene, classId, caster, allies = [], target = null) {
+export function playUltimate(scene, classId, caster, allies = [], target = null, def = null) {
   const t = target ?? { x: caster.x + 70, y: caster.y };
   const everyone = [caster, ...allies];
   switch (classId) {
@@ -511,6 +551,7 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
         musicNotes(scene, m.x, m.y - 16, { count: 4, delay: 600 + i * 160 });
       });
       burst(scene, caster.x, caster.y - 60, { tint: 0xfff2c8, count: 16, speed: 110 });
+      if (def) sustainLoresingerSong(scene, caster, def);
       return 2400;
     }
     case 'herbmaster': {
@@ -531,6 +572,7 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
         rise(scene, m.x, m.y, { tint: 0xc8f0d0, count: 14, lifespan: 1200 });
       });
       ring(scene, caster.x, caster.y, { tint: TINT.heal, radius: 120, duration: 900, delay: 700 });
+      if (def) sustainHerbmasterStaff(scene, caster, def);
       return 2400;
     }
     case 'smith': {
