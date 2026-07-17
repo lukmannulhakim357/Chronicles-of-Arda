@@ -1,6 +1,7 @@
 // Verifies this round's follow-up fixes:
-// - Whirlwind rotates the character sprite itself (weapon in hand), not
-//   just an orbiting weapon icon detached from the body
+// - Whirlwind cycles the character through all 4 facing directions (with a
+//   swing at each) instead of literally rotating the sprite (which made it
+//   look like the character fell over) or orbiting the weapon on its own
 // - Ranger's single-shot skills (Quick Shot, Piercing Arrow, Disabling
 //   Shot) fire ONE arrow, not the 3-arrow fan every skill used before
 // - Volley drops an arrow rain distinct from the bow's own hand-fired shot
@@ -31,22 +32,28 @@ await page.evaluate(async () => {
   scene.startTraining({ id: 'warrior' });
   await new Promise((r) => setTimeout(r, 800));
 });
-const spinRotation = await page.evaluate(async () => {
+const spinTrace = await page.evaluate(async () => {
   const w = window.__game.scene.getScene('World');
   w.state.mp = 999;
   w.skillCooldowns = {};
   w.attacking = false;
-  const before = w.player.rotation;
+  w.facing = 'down';
+  const rotationBefore = w.player.rotation;
+  const anims = [];
   w.onSkillPressed({ slot: 4 }); // whirlwind
-  await new Promise((r) => setTimeout(r, 280)); // mid-spin
-  const mid = w.player.rotation;
-  await new Promise((r) => setTimeout(r, 500)); // spin should be over
-  const after = w.player.rotation;
-  return { before, mid, after };
+  for (let i = 0; i < 5; i++) {
+    await new Promise((r) => setTimeout(r, 130));
+    anims.push(w.player.anims.currentAnim?.key);
+  }
+  await new Promise((r) => setTimeout(r, 500));
+  return { rotationBefore, rotationAfter: w.player.rotation, anims };
 });
-console.log('player.rotation before/mid/after whirlwind:', JSON.stringify(spinRotation));
-const spinOk = spinRotation.mid !== spinRotation.before && Math.abs(spinRotation.after) < 0.01;
-console.log('character actually rotates mid-spin and resets after:', spinOk);
+console.log('whirlwind facing sequence + rotation:', JSON.stringify(spinTrace));
+// the sprite itself must never rotate (that's the "lying down" bug); the
+// facing should visibly cycle through multiple directions as it swings
+const distinctDirs = new Set(spinTrace.anims.filter(Boolean).map((k) => k.split('-slash-')[1]));
+const spinOk = spinTrace.rotationBefore === 0 && spinTrace.rotationAfter === 0 && distinctDirs.size >= 3;
+console.log('sprite never rotates + cycles through >=3 facing directions:', spinOk, [...distinctDirs]);
 
 // --- 2. Ranger: Quick Shot / Piercing Arrow / Disabling Shot fire ONE
 // arrow; Multi-Shot fires three; Volley triggers the arrow-rain path ---

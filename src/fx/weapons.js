@@ -426,45 +426,56 @@ export function playShieldBash(scene, player, facing, { targetPos = null } = {})
 // Whirlwind — the equipped weapon actually orbits the player in a full
 // circle instead of a single-direction crescent, so the description's "spin
 // hits everyone nearby" reads true instead of looking like one more swing.
-export function playWhirlwindSpin(scene, player, itemId) {
+// A top-down character sprite is drawn front/three-quarter-on — literally
+// rotating the whole sprite (an earlier attempt at this) makes it look like
+// the character keels over sideways instead of turning around. Real
+// top-down spins fake it by cycling the character's own facing frames, so
+// the body stays upright and just faces a new direction each beat, with the
+// weapon swinging along with each turn.
+const SPIN_ORDER = ['down', 'left', 'up', 'right'];
+function spinSequence(facing) {
+  const start = SPIN_ORDER.indexOf(facing);
+  const seq = [];
+  for (let i = 1; i <= 4; i++) seq.push(SPIN_ORDER[(start + i) % 4]);
+  return seq; // 4 steps, ending back on the character's actual facing
+}
+
+export function playWhirlwindSpin(scene, player, itemId, facing) {
   const shape = weaponShapeOf(itemId) ?? 'sword';
   ensureWeaponTextures(scene);
-  const gripR = 14; // tight to the body — gripped, not flung out on its own
-  const img = scene.add
-    .image(player.x, player.y, `fxw-${shape}`)
-    .setOrigin(0.5, 0.95)
-    .setDepth(player.y + 1)
-    .setTint(0xfff2c8)
-    .setScale(1.15);
-  const startRotation = player.rotation;
-  const spin = { a: 0 };
-  scene.tweens.add({
-    targets: spin,
-    a: Math.PI * 2,
-    duration: 560,
-    ease: 'Sine.easeInOut',
-    onUpdate: () => {
-      // the character spins in place, sword still gripped in hand — the
-      // weapon tracks the same rotation instead of orbiting on its own
-      player.rotation = startRotation + spin.a;
-      img.x = player.x + Math.cos(spin.a) * gripR;
-      img.y = player.y + Math.sin(spin.a) * gripR * 0.6; // squashed for the top-down angle
-      img.rotation = spin.a + Math.PI / 2;
-      img.setDepth(Math.sin(spin.a) >= 0 ? player.y + 1 : player.y - 1);
-    },
-    onComplete: () => {
-      player.rotation = startRotation; // snap back upright once the spin ends
-      scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() });
-    },
+  const sheet = player.texture.key;
+  const stepMs = 130;
+  spinSequence(facing).forEach((dir, i) => {
+    scene.time.delayedCall(i * stepMs, () => {
+      if (!player.active) return;
+      player.play(`${sheet}-slash-${dir}`, true);
+      const hand = HAND_SLASH[dir];
+      const img = scene.add
+        .image(player.x + hand.x, player.y + hand.y, `fxw-${shape}`)
+        .setOrigin(0.5, 0.95)
+        .setDepth(hand.dy < 0 ? player.y - 1 : player.y + 1)
+        .setFlipX(hand.flip)
+        .setTint(0xfff2c8)
+        .setScale(1.15);
+      const d = hand.flip ? -1 : 1;
+      img.rotation = d * -1.3;
+      scene.tweens.add({
+        targets: img,
+        rotation: d * 1.1,
+        duration: stepMs + 30,
+        ease: 'Sine.easeOut',
+        onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 80, onComplete: () => img.destroy() }),
+      });
+    });
   });
-  // a full ring visibly sweeps outward with the spin — everyone nearby
-  // takes the hit, not just whatever was standing in one direction
+  // a full ring visibly sweeps outward across the whole turn — everyone
+  // nearby takes the hit, not just whatever was standing in one direction
   const ring = scene.add.circle(player.x, player.y, 6).setStrokeStyle(3, 0xd9d9e8, 0.9).setDepth(player.y + 2).setBlendMode(Phaser.BlendModes.ADD);
   scene.tweens.add({
     targets: ring,
     radius: 34,
     alpha: 0,
-    duration: 560,
+    duration: stepMs * 4 + 40,
     ease: 'Sine.easeOut',
     onUpdate: () => ring.setStrokeStyle(3, 0xd9d9e8, ring.alpha),
     onComplete: () => ring.destroy(),

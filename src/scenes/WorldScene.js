@@ -385,7 +385,7 @@ export default class WorldScene extends Phaser.Scene {
     //   Piercing Arrow — that one shot punches through, further and brighter
     //   Volley        — an arrow rain drops on the target, not a hand-fired fan
     if (id === 'shield_slam') playShieldBash(this, this.player, this.facing, { targetPos: aimed });
-    else if (id === 'whirlwind') playWhirlwindSpin(this, this.player, skillWeapon);
+    else if (id === 'whirlwind') playWhirlwindSpin(this, this.player, skillWeapon, this.facing);
     else if (id === 'quick_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
     else if (id === 'piercing_arrow') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1, pierce: true, arrowTint: 0xd8f0ff });
     else if (id === 'disabling_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1, arrowTint: 0xe8a05a });
