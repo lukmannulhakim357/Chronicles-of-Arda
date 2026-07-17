@@ -110,8 +110,8 @@ export function ensureSummonTextures(scene) {
 const FORM_DEF = {
   bird: { tint: 0xffffff, count: 5, texture: 'smn-bird-a', flap: ['smn-bird-a', 'smn-bird-b'], bob: 10 },
   spirit: { tint: 0x8ae8e8, count: 1, texture: 'glow', scale: 0.35, bob: 6 },
-  eagle: { tint: 0xffffff, count: 1, texture: 'smn-eagle-a', flap: ['smn-eagle-a', 'smn-eagle-b'], bob: 14 },
-  ent: { tint: 0xffffff, count: 1, texture: 'smn-ent', bob: 2 },
+  eagle: { tint: 0xffffff, count: 1, texture: 'smn-eagle-a', flap: ['smn-eagle-a', 'smn-eagle-b'], bob: 14, scale: 1.35 },
+  ent: { tint: 0xffffff, count: 1, texture: 'smn-ent', bob: 2, scale: 1.3 },
   bear: { tint: 0xffffff, count: 1, texture: 'smn-bear', bob: 3 },
 };
 
@@ -148,14 +148,20 @@ export function spawnSummon(scene, form, player, getEnemyPos, onHit, durationMs 
     sprites.push(s);
   }
 
+  // Once an enemy is around, the summon loiters near IT instead of trailing
+  // the master — it's loose now, not on a leash. Only falls back to
+  // following the player when there's nothing nearby to fight.
   const followTimer = scene.time.addEvent({
     delay: 140,
     loop: true,
     callback: () => {
+      const enemy = getEnemyPos?.();
+      const anchor = enemy ?? player;
+      const lerp = enemy ? 0.1 : 0.25; // ease into the enemy-side hover, don't snap
       for (const s of sprites) {
         if (!s.active) continue;
-        const targetX = player.x + s.followOff.x;
-        s.x += (targetX - s.x) * 0.25;
+        const targetX = anchor.x + s.followOff.x;
+        s.x += (targetX - s.x) * lerp;
         s.x += Math.sin(scene.time.now / 300 + s.followOff.x) * 0.6;
         s.setFlipX(targetX < s.x); // face the way it's drifting
       }
@@ -183,8 +189,6 @@ export function spawnSummon(scene, form, player, getEnemyPos, onHit, durationMs 
       const enemy = getEnemyPos?.();
       if (!enemy || !sprites[0]?.active) return;
       const attacker = sprites[0];
-      const fromX = attacker.x;
-      const fromY = attacker.y;
       scene.tweens.add({
         targets: attacker,
         x: enemy.x,
@@ -204,7 +208,8 @@ export function spawnSummon(scene, form, player, getEnemyPos, onHit, durationMs 
           p.explode(6);
           scene.time.delayedCall(500, () => p.destroy());
           onHit?.(form);
-          scene.tweens.add({ targets: attacker, x: fromX, y: fromY, duration: 420, ease: 'Sine.easeOut' });
+          // no trip back to the master — the ambient follow-timer above
+          // eases it right back into its hover spot beside the enemy
         },
       });
     },

@@ -465,10 +465,80 @@ const SKIRMISHER_FX = {
   vanish: () => {},
 };
 
+// Captain — several of these are self-centered ("the whole party" reads
+// from the Captain outward, no range limit) rather than something that
+// should appear parked on an enemy the way single-target skills do.
+const CAPTAIN_FX = {
+  rallying_strike: (scene, caster, t) => {
+    crescent(scene, t.x, t.y, { tint: TINT.phys, rotation: Phaser.Math.FloatBetween(-0.6, 0.6) });
+    burst(scene, t.x, t.y, { tint: TINT.phys, count: 8 });
+    ring(scene, caster.x, caster.y, { tint: TINT.buff, radius: 26, duration: 300 }); // the voice carrying outward
+  },
+  battle_cry: (scene, caster) => {
+    // a shout ripples outward from the Captain, not a ring parked on an enemy
+    for (let i = 0; i < 3; i++) ring(scene, caster.x, caster.y, { tint: TINT.buff, radius: 40 + i * 22, duration: 500, delay: i * 120 });
+    burst(scene, caster.x, caster.y - 10, { tint: TINT.buff, count: 10, speed: 90 });
+  },
+  banner_plant: (scene, caster) => {
+    // an actual banner, planted at the Captain's own feet — not a generic ring
+    const growth = { h: 1 };
+    const pole = scene.add.rectangle(caster.x, caster.y + 6, 3, 1, 0x6b4a2a, 1).setOrigin(0.5, 1).setDepth(caster.y + 1);
+    const flag = scene.add.triangle(caster.x + 2, caster.y - 20, 0, 0, 13, 4, 0, 8, 0xd9b968, 0.95).setDepth(caster.y + 1).setAlpha(0);
+    scene.tweens.add({ targets: growth, h: 28, duration: 260, ease: 'Back.easeOut', onUpdate: () => pole.setSize(3, growth.h) });
+    scene.tweens.add({ targets: flag, alpha: 1, duration: 200, delay: 200 });
+    ring(scene, caster.x, caster.y, { tint: TINT.buff, radius: 44, duration: 500, delay: 260 });
+    scene.time.delayedCall(2600, () => {
+      scene.tweens.add({ targets: [pole, flag], alpha: 0, duration: 400, onComplete: () => { pole.destroy(); flag.destroy(); } });
+    });
+  },
+  inspiring_shout: (scene, caster, t) => {
+    // a warm gold wave — not the green nature-heal tone every other heal uses
+    pillar(scene, t.x, t.y + 12, { tint: TINT.gold, h: 70 });
+    rise(scene, t.x, t.y, { tint: TINT.gold });
+  },
+  flanking_order: (scene, caster, t) => {
+    // "the party visibly tightens formation" — a ring contracting inward,
+    // not the usual expanding buff ring
+    const c = scene.add.circle(t.x, t.y, 60).setStrokeStyle(3, TINT.buff, 0.9).setDepth(59000).setBlendMode(Phaser.BlendModes.ADD);
+    scene.tweens.add({
+      targets: c,
+      radius: 14,
+      alpha: 0,
+      duration: 420,
+      ease: 'Sine.easeIn',
+      onUpdate: () => c.setStrokeStyle(3, TINT.buff, c.alpha),
+      onComplete: () => c.destroy(),
+    });
+    rise(scene, t.x, t.y, { tint: TINT.buff, count: 8 });
+  },
+};
+
+// Summoner — each Call skill's summoning circle is tinted to match the
+// creature it's about to bring out (same palette as Call of the Wild's
+// ultimate), instead of one generic blue magic-circle for all five.
+const SUMMON_TINT = {
+  call_bird: 0xf0f0ff,
+  call_spirit: 0x8ae8e8,
+  call_great_eagle: 0xf2d06b,
+  call_ent: 0x8ae89a,
+  call_beorning: 0xd9a06b,
+};
+const SUMMONER_FX = Object.fromEntries(
+  Object.entries(SUMMON_TINT).map(([id, tint]) => [
+    id,
+    (scene, caster) => {
+      magicCircle(scene, caster.x, caster.y + 8, { tint, radius: 30 });
+      burst(scene, caster.x, caster.y, { tint, count: 8 });
+    },
+  ])
+);
+
 export function playSkillFx(scene, def, caster, target, classId = null) {
   const t = target ?? caster;
   if (classId === 'loresinger' && LORESINGER_FX[def.id]) return LORESINGER_FX[def.id](scene, caster, t);
   if (classId === 'herbmaster' && HERBMASTER_FX[def.id]) return HERBMASTER_FX[def.id](scene, caster, t);
+  if (classId === 'captain' && CAPTAIN_FX[def.id]) return CAPTAIN_FX[def.id](scene, caster, t);
+  if (classId === 'summoner' && SUMMONER_FX[def.id]) return SUMMONER_FX[def.id](scene, caster, t);
   if (classId === 'smith' && SMITH_FX[def.id]) return SMITH_FX[def.id](scene, caster, t);
   if (classId === 'skirmisher' && SKIRMISHER_FX[def.id]) return SKIRMISHER_FX[def.id](scene, caster, t);
   switch (def.kind) {
@@ -663,10 +733,15 @@ export function playUltimate(scene, classId, caster, allies = [], target = null,
     }
     case 'captain': {
       // War Horn's Call — the horn sounds, and the Guard answers, STAYS,
-      // and fights: 2 swordsmen + 2 archers hold formation for ~5s, each
-      // striking at the target repeatedly before the light releases them
+      // and fights: 2 swordsmen + 2 archers march out to the enemies and
+      // hold there for ~5s, each striking repeatedly before the light
+      // releases them. With several enemies present they spread out and
+      // split up the work instead of dog-piling one target; with only one
+      // enemy, all four naturally converge on it. They never yo-yo back to
+      // formation — once released, they're loose and stay engaged.
       ensureWeaponTextures(scene);
       for (let i = 0; i < 3; i++) ring(scene, caster.x, caster.y - 10, { tint: 0xf2d06b, radius: 70 + i * 25, duration: 500, delay: i * 160 });
+      const enemies = scene.quest?.getEnemies?.() ?? (t ? [t] : []);
       const spots = [
         [-46, -20],
         [46, -20],
@@ -681,19 +756,32 @@ export function playUltimate(scene, classId, caster, allies = [], target = null,
         const wpn = scene.add.image(gx + 9, gy + 2, `fxw-${weaponKey}`).setTint(0xd8e8ff).setAlpha(0).setDepth(59001).setRotation(0.5);
         const parts = [spr, wpn];
         scene.tweens.add({ targets: parts, delay: 450 + i * 130, alpha: 0.9, duration: 300 });
-        // each guardsman lunges at the target twice, swinging, then returns
-        for (let strike = 0; strike < 2; strike++) {
-          scene.time.delayedCall(1300 + i * 350 + strike * 1600, () => {
+        const myTarget = enemies.length ? enemies[i % enemies.length] : t;
+        if (!myTarget) return;
+        // march out once and take up a spot near their assigned enemy —
+        // no return trip to formation afterward
+        const postX = myTarget.x + (i % 2 === 0 ? -16 : 16);
+        const postY = myTarget.y + 8;
+        scene.time.delayedCall(900 + i * 150, () => {
+          if (!spr.active) return;
+          spr.play('npc_elf_hunter-walk-right', true);
+          scene.tweens.add({ targets: parts, x: postX, y: postY, duration: 420, ease: 'Quad.easeOut' });
+        });
+        // repeated strikes from wherever they're now standing
+        for (let strike = 0; strike < 3; strike++) {
+          scene.time.delayedCall(1500 + i * 150 + strike * 1300, () => {
             if (!spr.active) return;
-            spr.play(`npc_elf_hunter-slash-right`, true);
+            spr.play('npc_elf_hunter-slash-right', true);
+            const bx = spr.x;
+            const by = spr.y;
             scene.tweens.add({
               targets: parts,
-              x: `+=${(t.x - spr.x) * 0.55}`,
-              y: `+=${(t.y - spr.y) * 0.55}`,
-              duration: 240,
+              x: `+=${(myTarget.x - bx) * 0.35}`,
+              y: `+=${(myTarget.y - by) * 0.35}`,
+              duration: 180,
               ease: 'Quad.easeIn',
               yoyo: true,
-              onYoyo: () => burst(scene, t.x, t.y, { tint: 0xd8e8ff, count: 5, speed: 70, lifespan: 300, scale: 0.22 }),
+              onYoyo: () => burst(scene, myTarget.x, myTarget.y, { tint: 0xd8e8ff, count: 5, speed: 70, lifespan: 300, scale: 0.22 }),
             });
           });
         }

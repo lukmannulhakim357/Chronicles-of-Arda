@@ -485,14 +485,35 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
       },
     });
   } else {
-    // talisman (and the magic-flavored horn) — raise it, let the focus answer
+    // talisman (and the magic-flavored horn) — a direct beam, not a raised
+    // glow. The talisman sits at medium range, so it calls for something
+    // more decisive: a quick raise, then a bolt straight down the aim line.
     scene.tweens.add({
       targets: img,
-      y: y - (skill ? 14 : 8),
-      duration: 200,
+      y: y - (skill ? 8 : 5),
+      duration: 110,
       ease: 'Sine.easeOut',
       onComplete: () => {
-        flareTip(scene, img.x, img.y - 16, img.depth + 1, skill);
+        const beamAngle = Math.atan2(aim.dy, aim.dx);
+        const fireBeam = (thick, tint, life) => {
+          const beam = scene.add
+            .rectangle(img.x, img.y - 10, aim.dist, thick, tint, 0.9)
+            .setOrigin(0, 0.5)
+            .setRotation(beamAngle)
+            .setDepth(img.depth + 1)
+            .setBlendMode(Phaser.BlendModes.ADD)
+            .setScale(0.05, 1);
+          scene.tweens.add({
+            targets: beam,
+            scaleX: 1,
+            duration: 90,
+            ease: 'Quad.easeOut',
+            onComplete: () => scene.tweens.add({ targets: beam, alpha: 0, duration: life, onComplete: () => beam.destroy() }),
+          });
+        };
+        fireBeam(skill ? 5 : 3, 0xb07fe8, skill ? 220 : 140);
+        if (skill) scene.time.delayedCall(130, () => fireBeam(6, 0xd0a8f2, 200)); // a heavier second pulse
+        flareTip(scene, img.x + aim.dx * aim.dist, img.y - 10 + aim.dy * aim.dist, img.depth + 2, skill);
         scene.tweens.add({ targets: img, alpha: 0, duration: 240, onComplete: () => img.destroy() });
       },
     });
