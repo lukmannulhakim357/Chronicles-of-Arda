@@ -151,9 +151,9 @@ function handTableFor(family) {
   return HAND_SLASH;
 }
 
-function arrow(scene, x, y, dx, dy, delay = 0, dist = 68) {
+function arrow(scene, x, y, dx, dy, delay = 0, dist = 68, tint = 0xe8dcc0, thick = false) {
   const a = scene.add
-    .rectangle(x, y, 14, 2, 0xe8dcc0, 1)
+    .rectangle(x, y, thick ? 20 : 14, thick ? 3 : 2, tint, 1)
     .setDepth(59006)
     .setRotation(Math.atan2(dy, dx))
     .setAlpha(0);
@@ -167,6 +167,34 @@ function arrow(scene, x, y, dx, dy, delay = 0, dist = 68) {
     ease: 'Sine.easeIn',
     onComplete: () => a.destroy(),
   });
+}
+
+// Volley — a rain of arrows dropping out of the sky onto the target area,
+// not the bow's own hand-fired shot. Distinct from every other Ranger
+// skill, which all fire from the bow itself.
+export function playArrowRain(scene, targetPos, { count = 10, radius = 50 } = {}) {
+  for (let i = 0; i < count; i++) {
+    const ox = targetPos.x + Phaser.Math.Between(-radius, radius);
+    const oy = targetPos.y + Phaser.Math.Between(-radius, radius);
+    const a = scene.add
+      .rectangle(ox, oy - 140, 3, 16, 0xe8dcc0, 1)
+      .setDepth(59006)
+      .setRotation(Math.PI / 2 + 0.15)
+      .setAlpha(0);
+    scene.tweens.add({
+      targets: a,
+      delay: Phaser.Math.Between(0, 260),
+      alpha: { from: 1, to: 0.7 },
+      y: oy,
+      duration: 260 + Phaser.Math.Between(0, 120),
+      ease: 'Quad.easeIn',
+      onComplete: () => {
+        a.destroy();
+        const spark = scene.add.circle(ox, oy, 2, 0xe8dcc0, 0.9).setDepth(59007);
+        scene.tweens.add({ targets: spark, radius: 8, alpha: 0, duration: 180, onComplete: () => spark.destroy() });
+      },
+    });
+  }
 }
 
 function pebble(scene, x, y, dx, dy, delay = 0, dist = 68) {
@@ -197,7 +225,7 @@ function spawnWeapon(scene, player, shape, hand, skill) {
 // differently per family: melee arcs (skills double-swing), bows loose a
 // visible arrow (skills a fanned volley), magic foci raise with a flare
 // (skills add a spell ring at the tip).
-export function playWeaponSwing(scene, player, itemId, facing, { skill = false, targetPos = null } = {}) {
+export function playWeaponSwing(scene, player, itemId, facing, { skill = false, targetPos = null, shots = null, pierce = false, arrowTint = null } = {}) {
   const shape = weaponShapeOf(itemId);
   if (!shape) return;
   ensureWeaponTextures(scene);
@@ -272,7 +300,13 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
   } else if (shape === 'bow') {
     // held steady in both hands, stave perpendicular to the aim line, while
     // the shoot animation plays; the nocked arrow visibly draws back before
-    // it looses — not a swing, a hold-and-release
+    // it looses — not a swing, a hold-and-release. Different Ranger skills
+    // fire a different number/style of shot (Quick Shot and Piercing Arrow
+    // loose one, Multi-Shot fans three, Disabling Shot roots instead of
+    // hurting) instead of every skill looking like the same 3-shot volley.
+    const shotCount = shots ?? (skill ? 3 : 1);
+    const tint = arrowTint ?? 0xe8dcc0;
+    const dist = pierce ? aim.dist + 26 : aim.dist;
     img.setOrigin(0.5, 0.5).setPosition(x, y).setRotation(Math.atan2(aim.dy, aim.dx) + Math.PI / 2);
     const drawDist = skill ? 12 : 8;
     const drawMs = skill ? 420 : 300;
@@ -285,13 +319,13 @@ export function playWeaponSwing(scene, player, itemId, facing, { skill = false, 
     scene.time.delayedCall(drawMs, () => {
       nock.destroy();
       scene.tweens.add({ targets: img, scaleX: 1, scaleY: 1, duration: 100, ease: 'Back.easeOut' });
-      if (skill) {
-        // volley: three shots fanned out around the aim line
-        arrow(scene, x, y, aim.dx, aim.dy, 0, aim.dist);
-        arrow(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 80, aim.dist);
-        arrow(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 160, aim.dist);
+      if (shotCount >= 3) {
+        // a fan of three shots around the aim line
+        arrow(scene, x, y, aim.dx, aim.dy, 0, dist, tint, pierce);
+        arrow(scene, x + aim.dy * 8, y + aim.dx * 8, aim.dx * 0.94 - aim.dy * 0.25, aim.dy * 0.94 + aim.dx * 0.25, 80, dist, tint, pierce);
+        arrow(scene, x - aim.dy * 8, y - aim.dx * 8, aim.dx * 0.94 + aim.dy * 0.25, aim.dy * 0.94 - aim.dx * 0.25, 160, dist, tint, pierce);
       } else {
-        arrow(scene, x, y, aim.dx, aim.dy, 0, aim.dist);
+        arrow(scene, x, y, aim.dx, aim.dy, 0, dist, tint, pierce);
       }
     });
     scene.time.delayedCall(drawMs + 260, () => scene.tweens.add({ targets: img, alpha: 0, duration: 160, onComplete: () => img.destroy() }));
@@ -395,13 +429,14 @@ export function playShieldBash(scene, player, facing, { targetPos = null } = {})
 export function playWhirlwindSpin(scene, player, itemId) {
   const shape = weaponShapeOf(itemId) ?? 'sword';
   ensureWeaponTextures(scene);
-  const orbitR = 26;
+  const gripR = 14; // tight to the body — gripped, not flung out on its own
   const img = scene.add
-    .image(player.x + orbitR, player.y, `fxw-${shape}`)
+    .image(player.x, player.y, `fxw-${shape}`)
     .setOrigin(0.5, 0.95)
     .setDepth(player.y + 1)
     .setTint(0xfff2c8)
     .setScale(1.15);
+  const startRotation = player.rotation;
   const spin = { a: 0 };
   scene.tweens.add({
     targets: spin,
@@ -409,12 +444,18 @@ export function playWhirlwindSpin(scene, player, itemId) {
     duration: 560,
     ease: 'Sine.easeInOut',
     onUpdate: () => {
-      img.x = player.x + Math.cos(spin.a) * orbitR;
-      img.y = player.y + Math.sin(spin.a) * orbitR * 0.6; // squashed for the top-down angle
+      // the character spins in place, sword still gripped in hand — the
+      // weapon tracks the same rotation instead of orbiting on its own
+      player.rotation = startRotation + spin.a;
+      img.x = player.x + Math.cos(spin.a) * gripR;
+      img.y = player.y + Math.sin(spin.a) * gripR * 0.6; // squashed for the top-down angle
       img.rotation = spin.a + Math.PI / 2;
       img.setDepth(Math.sin(spin.a) >= 0 ? player.y + 1 : player.y - 1);
     },
-    onComplete: () => scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() }),
+    onComplete: () => {
+      player.rotation = startRotation; // snap back upright once the spin ends
+      scene.tweens.add({ targets: img, alpha: 0, duration: 140, onComplete: () => img.destroy() });
+    },
   });
   // a full ring visibly sweeps outward with the spin — everyone nearby
   // takes the hit, not just whatever was standing in one direction

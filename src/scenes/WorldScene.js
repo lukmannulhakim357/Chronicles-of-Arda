@@ -10,7 +10,7 @@ import { tilesToPx } from '../world/coords.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { skillDef, rankOf, skillRing } from '../data/skills.js';
 import { playSkillFx, playUltimate } from '../fx/skillfx.js';
-import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin } from '../fx/weapons.js';
+import { playWeaponSwing, animFamilyOf, playShieldBash, playWhirlwindSpin, playArrowRain } from '../fx/weapons.js';
 import { WEAPON_BY_CLASS, weaponRangePx } from '../data/items.js';
 import { spawnSummon, SUMMON_FORMS } from '../fx/summons.js';
 import { iconTint } from '../fx/skillicons.js';
@@ -369,20 +369,34 @@ export default class WorldScene extends Phaser.Scene {
     const step = { up: [0, -10], down: [0, 10], left: [-10, 0], right: [10, 0] }[this.facing];
     this.tweens.add({ targets: this.player, x: this.player.x + step[0], y: this.player.y + step[1], duration: 120, yoyo: true, ease: 'Sine.easeOut' });
 
-    // auto-aim, then show the skill's weapon action — Shield Slam bashes
-    // with a shield instead of swinging whatever's equipped, Whirlwind
-    // spins the weapon in a full circle instead of one more arc, everything
-    // else just plays the equipped/class weapon's normal skill motion
+    // auto-aim first, so the target is known before any weapon action or
+    // VFX needs to aim at it
     const aimed = this.pickEnemyTarget(this.getAttackRangePx(true));
     if (aimed) this.faceToward(aimed);
+    const facingOffset = { up: [0, -50], down: [0, 50], left: [-50, 0], right: [50, 0] }[this.facing];
+    const target = aimed ?? this.quest.getEnemyPos?.() ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
+
+    // the skill's weapon action — most skills just play the equipped/class
+    // weapon's normal skill motion, but several have their own distinct
+    // motion instead of reusing one generic swing/shot for everything:
+    //   Shield Slam   — a shield bashes forward, not the equipped weapon
+    //   Whirlwind     — the character (weapon in hand) spins a full circle
+    //   Quick Shot / Piercing Arrow / Disabling Shot — one shot, not a fan
+    //   Piercing Arrow — that one shot punches through, further and brighter
+    //   Volley        — an arrow rain drops on the target, not a hand-fired fan
     if (id === 'shield_slam') playShieldBash(this, this.player, this.facing, { targetPos: aimed });
     else if (id === 'whirlwind') playWhirlwindSpin(this, this.player, skillWeapon);
-    else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
+    else if (id === 'quick_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
+    else if (id === 'piercing_arrow') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1, pierce: true, arrowTint: 0xd8f0ff });
+    else if (id === 'disabling_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1, arrowTint: 0xe8a05a });
+    else if (id === 'multi_shot') playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, arrowTint: 0xb8e88a });
+    else if (id === 'volley') {
+      playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed, shots: 1 });
+      playArrowRain(this, target);
+    } else if (skillWeapon) playWeaponSwing(this, this.player, skillWeapon, this.facing, { skill: true, targetPos: aimed });
 
     // skill VFX: capstones get their full class ultimate, everything else
     // a kind-matched beat, aimed at the current enemy if there is one
-    const facingOffset = { up: [0, -50], down: [0, 50], left: [-50, 0], right: [50, 0] }[this.facing];
-    const target = aimed ?? this.quest.getEnemyPos?.() ?? { x: this.player.x + facingOffset[0], y: this.player.y + facingOffset[1] };
     if (def.capstone) playUltimate(this, this.state.classId, { x: this.player.x, y: this.player.y }, [], target);
     else playSkillFx(this, def, { x: this.player.x, y: this.player.y }, target, this.state.classId);
 
@@ -400,7 +414,14 @@ export default class WorldScene extends Phaser.Scene {
     }
 
     const rank = rankOf(this.state, id);
-    this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));
+    // Storm of the Wild Hunt: the barrage drops three times over about a
+    // second (the attack-rate buff from playUltimate still just applies
+    // once, per its own duration) instead of resolving as a single instant hit
+    if (id === 'storm_of_the_wild_hunt') {
+      for (let i = 0; i < 3; i++) this.time.delayedCall(180 + i * 400, () => this.quest.onPlayerSkill?.(def, rank));
+    } else {
+      this.time.delayedCall(180, () => this.quest.onPlayerSkill?.(def, rank));
+    }
     this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
       this.attacking = false;
     });

@@ -298,17 +298,24 @@ export function playUltimate(scene, classId, caster, allies = [], target = null)
       return 2200;
     }
     case 'ranger': {
-      // Storm of the Wild Hunt — the sky answers with arrows
+      // Storm of the Wild Hunt — the sky answers with arrows in three
+      // distinct volleys over about a second, matching the three real hits
+      // the barrage now lands (WorldScene.onSkillPressed), not one big
+      // simultaneous drop
       ring(scene, caster.x, caster.y, { tint: 0x9ae8b4, radius: 60, duration: 400 });
-      for (let i = 0; i < 16; i++) {
-        const dx = Phaser.Math.Between(-80, 80);
-        streak(scene, t.x + dx + 60, t.y - 130, t.x + dx, t.y + Phaser.Math.Between(-30, 30), {
-          tint: 0xd8f0c8,
-          duration: 240,
-          delay: 250 + i * 70,
-          length: 30,
-        });
-      }
+      const waveDelays = [180, 580, 980];
+      waveDelays.forEach((waveDelay) => {
+        for (let i = 0; i < 6; i++) {
+          const dx = Phaser.Math.Between(-80, 80);
+          streak(scene, t.x + dx + 60, t.y - 130, t.x + dx, t.y + Phaser.Math.Between(-30, 30), {
+            tint: 0xd8f0c8,
+            duration: 220,
+            delay: waveDelay + i * 30,
+            length: 30,
+          });
+        }
+        scene.time.delayedCall(waveDelay + 160, () => ring(scene, t.x, t.y, { tint: 0x9ae8b4, radius: 60, duration: 350 }));
+      });
       ring(scene, t.x, t.y, { tint: 0x9ae8b4, radius: 110, duration: 700, delay: 1500 });
       return 2400;
     }
