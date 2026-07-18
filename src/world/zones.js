@@ -4,6 +4,20 @@ import * as steppes from './steppes.js';
 import StragglersQuest from '../quests/stragglers.js';
 import * as greatforest from './greatforest.js';
 import LostBeforeNightfallQuest from '../quests/lostbeforenightfall.js';
+import * as valesanduin from './valesanduin.js';
+import LenwesChoiceQuest from '../quests/lenweschoice.js';
+import * as hithaeglir from './hithaeglir.js';
+import ThePassQuest from '../quests/thepass.js';
+import * as rhovanion from './rhovanion.js';
+import TheLongRoadQuest from '../quests/thelongroad.js';
+import * as eredluin from './eredluin.js';
+import FirstContactQuest from '../quests/firstcontact.js';
+import * as beleriand from './beleriand.js';
+import TheKingIsLostQuest from '../quests/thekingislost.js';
+import * as falas from './falas.js';
+import ShipwrightAndSeaQuest from '../quests/shipwrightandsea.js';
+import * as crossing from './crossing.js';
+import TheCrossingQuest from '../quests/thecrossing.js';
 import * as training from './training.js';
 import TrainingQuest from '../quests/training.js';
 
@@ -14,6 +28,13 @@ export const ZONES = {
   cuivienen: { build: cuivienen.build, Quest: VanishingQuest, questId: 'vanishing' },
   steppes: { build: steppes.build, Quest: StragglersQuest, questId: 'stragglers' },
   'great-forest': { build: greatforest.build, Quest: LostBeforeNightfallQuest, questId: 'lost-before-nightfall' },
+  'vales-anduin': { build: valesanduin.build, Quest: LenwesChoiceQuest, questId: 'lenwes-choice' },
+  hithaeglir: { build: hithaeglir.build, Quest: ThePassQuest, questId: 'the-pass' },
+  rhovanion: { build: rhovanion.build, Quest: TheLongRoadQuest, questId: 'the-long-road' },
+  'ered-luin': { build: eredluin.build, Quest: FirstContactQuest, questId: 'first-contact' },
+  beleriand: { build: beleriand.build, Quest: TheKingIsLostQuest, questId: 'the-king-is-lost' },
+  falas: { build: falas.build, Quest: ShipwrightAndSeaQuest, questId: 'shipwright-and-sea' },
+  crossing: { build: crossing.build, Quest: TheCrossingQuest, questId: 'the-crossing' },
   training: { build: training.build, Quest: TrainingQuest, questId: 'training' }, // class-trial grounds, never saved
 };
 

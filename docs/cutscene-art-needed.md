@@ -24,10 +24,14 @@ marked `[ illustration planned ]` placeholder frame (`artFlag` parameter).
 - **Key elements**: colossal dark trees, single shafts of silver light,
   the suggestion of two distant figures (Elwë & Melian) lost in light
 
-### 4. The Crossing to Aman (waypoint 10, campaign close)
-- **Mood**: departure, longing, hope — leaving the only world they've known
-- **Key elements**: the island-ferry of Tol Eressëa on a dark sea, swan-prowed
-  silhouettes, the light of the Two Trees as a glow on the western horizon
+### 4. The Shores of Aman (waypoint 10, campaign close)
+- **Where**: story card after completing "The Crossing"
+  (`TheCrossingQuest.finishQuest`)
+- **Mood**: arrival, awe, hope fulfilled — the first sight of the world they
+  set out for, after the whole march
+- **Key elements**: seen from the islet/boat, low over a dark sea — white
+  sand shores catching a light with no single visible source (gold and
+  silver both at once, the Two Trees' glow), rising ahead out of the dark
 
 ## How to wire finished art in
 

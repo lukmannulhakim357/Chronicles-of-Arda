@@ -33,7 +33,7 @@ export const WAYPOINTS = [
     terrain: 'River valley below the mountains',
     beat: 'Lenwë and his people refuse the crossing and turn south.',
     quest: "Lenwë's Choice",
-    built: false,
+    built: true,
   },
   {
     id: 'hithaeglir',
@@ -41,7 +41,7 @@ export const WAYPOINTS = [
     terrain: 'High mountain pass',
     beat: 'The hardest crossing of the march, with something in the pass.',
     quest: 'The Pass',
-    built: false,
+    built: true,
   },
   {
     id: 'rhovanion',
@@ -49,7 +49,7 @@ export const WAYPOINTS = [
     terrain: 'Open wild lands',
     beat: 'Years of walking, hunting, and enduring.',
     quest: 'The Long Road',
-    built: false,
+    built: true,
   },
   {
     id: 'ered-luin',
@@ -57,7 +57,7 @@ export const WAYPOINTS = [
     terrain: 'The Blue Mountains',
     beat: 'Strangers of stone and beard already dwell here.',
     quest: 'First Contact',
-    built: false,
+    built: true,
   },
   {
     id: 'beleriand',
@@ -65,7 +65,7 @@ export const WAYPOINTS = [
     terrain: 'River Sirion valley, deep forest',
     beat: 'Elwë walks into Nan Elmoth and does not return.',
     quest: 'The King Is Lost',
-    built: false,
+    built: true,
   },
   {
     id: 'falas',
@@ -73,7 +73,7 @@ export const WAYPOINTS = [
     terrain: 'The western shore',
     beat: 'Ossë teaches the host to love the sea.',
     quest: 'Shipwright and Sea',
-    built: false,
+    built: true,
   },
   {
     id: 'crossing',
@@ -81,6 +81,6 @@ export const WAYPOINTS = [
     terrain: 'The Great Sea, via Tol Eressëa',
     beat: 'Ulmo ferries the host across. Valinor at last.',
     quest: 'The Crossing',
-    built: false,
+    built: true,
   },
 ];

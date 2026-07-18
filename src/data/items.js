@@ -92,6 +92,80 @@ export const ITEMS = {
     flavor: 'Soft-soled and silent — no caster wants their footsteps heard.',
   },
 
+  // Trade/crafting good — gathered in Waypoint 6 ("Rhovanion"), some sold
+  // to the nomad trader there for gold, the rest carried on to Waypoint 7
+  // ("Ered Luin") as the Dwarf smith's crafting ingredient. Not equippable
+  // (no `slot` among the 6 paperdoll slots — see CharacterScene.js's
+  // EQUIPPABLE_SLOTS guard) and carries no stat bonus.
+  sturdy_hide: {
+    id: 'sturdy_hide',
+    name: 'Sturdy Hide',
+    slot: 'material',
+    bonus: {},
+    flavor: 'Cured and supple — good trade goods, or good crafting stock, depending who you ask.',
+  },
+
+  // Crafted trinkets — Waypoint 7's reward, one per class, each a Dwarf
+  // smith's first attempt at reading what a traveling Elf actually needs.
+  // The first content ever granted for the Trinket slot (locked until now
+  // — see SLOT_DEFS in CharacterScene.js).
+  dwarven_strength_band: {
+    id: 'dwarven_strength_band',
+    name: 'Dwarven Strength-band',
+    slot: 'accessory',
+    bonus: { STR: 3 },
+    flavor: 'A plain iron band, hammered tight to the wrist. Norrik swore it would outlast the arm wearing it.',
+  },
+  dwarven_hunters_charm: {
+    id: 'dwarven_hunters_charm',
+    name: "Dwarven Hunter's Charm",
+    slot: 'accessory',
+    bonus: { DEX: 3 },
+    flavor: 'A knot of fine chain, balanced to not so much as click against a quiver.',
+  },
+  dwarven_songbead: {
+    id: 'dwarven_songbead',
+    name: 'Dwarven Songbead',
+    slot: 'accessory',
+    bonus: { MAG: 3 },
+    flavor: 'Hollow, and strung to hum faintly in a strong wind — the Naugrim have their own songs too, it turns out.',
+  },
+  dwarven_healers_locket: {
+    id: 'dwarven_healers_locket',
+    name: "Dwarven Healer's Locket",
+    slot: 'accessory',
+    bonus: { VIT: 3 },
+    flavor: 'Small enough to fit a pinch of dried herb inside — practical, Norrik insisted, not sentimental.',
+  },
+  dwarven_foremans_ring: {
+    id: 'dwarven_foremans_ring',
+    name: "Dwarven Foreman's Ring",
+    slot: 'accessory',
+    bonus: { STR: 3 },
+    flavor: 'A guild-mark ring, resized without complaint. "Wear it like you earned it," Norrik said, and meant it kindly.',
+  },
+  dwarven_snare_ring: {
+    id: 'dwarven_snare_ring',
+    name: 'Dwarven Snare-ring',
+    slot: 'accessory',
+    bonus: { DEX: 3 },
+    flavor: 'A thin wire ring, notched for grip — as much tool as jewelry.',
+  },
+  dwarven_captains_seal: {
+    id: 'dwarven_captains_seal',
+    name: "Dwarven Captain's Seal",
+    slot: 'accessory',
+    bonus: { VIT: 3 },
+    flavor: 'A stamped signet, more Dwarvish in style than any Elf-lord would wear — and given all the same.',
+  },
+  dwarven_binding_talisman: {
+    id: 'dwarven_binding_talisman',
+    name: 'Dwarven Binding Talisman',
+    slot: 'accessory',
+    bonus: { MAG: 3 },
+    flavor: "Old binding-work, the kind the Naugrim don't usually share. Norrik shrugged it off as 'scrap-work, nothing clever.'",
+  },
+
   // First weapons — granted in Waypoint 3 ("The Great Forest"), one per
   // class, matching each class's weapon in data/classes.js. Concept doc
   // §16.4 models weapons with their own Attack/Attack-Rate stats separate
@@ -242,6 +316,25 @@ export const ALT_WEAPON_BY_CLASS = {
   skirmisher: 'hunters_sling',
   captain: 'captains_horn',
   summoner: 'summoners_horn',
+};
+
+// The 6 real paperdoll slots — everything else (e.g. 'material') is
+// inventory-only and never equippable. CharacterScene.js uses this to
+// decide whether an inventory item's detail panel should even offer Equip.
+export const EQUIPPABLE_SLOTS = ['head', 'chest', 'gloves', 'boots', 'accessory', 'weapon'];
+
+// The Dwarf smith's one fixed recipe per class (Waypoint 7's "basic
+// version" crafting station) — one accessory each, the first content the
+// previously-locked Trinket slot ever gets.
+export const CRAFT_ITEM_BY_CLASS = {
+  warrior: 'dwarven_strength_band',
+  ranger: 'dwarven_hunters_charm',
+  loresinger: 'dwarven_songbead',
+  herbmaster: 'dwarven_healers_locket',
+  smith: 'dwarven_foremans_ring',
+  skirmisher: 'dwarven_snare_ring',
+  captain: 'dwarven_captains_seal',
+  summoner: 'dwarven_binding_talisman',
 };
 
 export function itemById(id) {

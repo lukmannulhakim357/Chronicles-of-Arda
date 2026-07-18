@@ -1,12 +1,15 @@
 import Phaser from 'phaser';
-import { COLORS, FONTS } from '../config.js';
+import { COLORS, FONTS, ROW, SHEET_COLS } from '../config.js';
 import { makeTextButton } from '../ui/widgets.js';
 import { MATERIALS, armorStyle, drawPanel, drawBagPanel, ensureItemTypeIcons, slotIconTexture } from '../ui/theme.js';
 import { getState, setState, effectiveStats } from '../systems/GameState.js';
-import { itemById, bonusLine } from '../data/items.js';
+import { itemById, bonusLine, EQUIPPABLE_SLOTS } from '../data/items.js';
 import { derivedStats, classById } from '../data/classes.js';
+import { kindredById } from '../data/kindreds.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
+import { PARTY_CAP } from '../systems/party.js';
+import { titleById } from '../data/titles.js';
 import {
   MAX_TREE_POINTS,
   getTree,
@@ -33,6 +36,7 @@ import { ensureSkillIconTextures, iconTexture, iconTint } from '../fx/skillicons
 const TABS = [
   { key: 'gear', label: '⚔ Gear' },
   { key: 'skills', label: '✦ Skills' },
+  { key: 'party', label: '👥 Party' },
   { key: 'titles', label: '👑 Titles' },
   { key: 'collection', label: '📜 Tales' },
   { key: 'craft', label: '⚒ Craft' },
@@ -43,9 +47,14 @@ const SLOT_DEFS = [
   { key: 'chest', label: 'Chest', locked: false },
   { key: 'gloves', label: 'Gloves', locked: false },
   { key: 'boots', label: 'Boots', locked: false },
-  { key: 'accessory', label: 'Trinket', locked: true },
+  { key: 'accessory', label: 'Trinket', locked: false }, // unlocked by Waypoint 7's crafted trinkets
   { key: 'weapon', label: 'Weapon', locked: false },
 ];
+
+// Only true armor (chest/gloves/boots) gets the heavy/light/robe weight-
+// class styling — weapons, trinkets, and trade goods stay a neutral gold
+// look, the same way weapons already did before trinkets/materials existed.
+const ARMOR_SLOTS = ['chest', 'gloves', 'boots'];
 
 const STAT_INFO = {
   VIT: 'Max HP, HP regen',
@@ -78,6 +87,10 @@ export default class CharacterScene extends Phaser.Scene {
     this.tab = data?.tab ?? 'gear';
     this.justLeveledUp = !!data?.levelUp;
     this.gearTutorial = !!data?.gearTutorial;
+    this.skillsTutorial = !!data?.skillsTutorial;
+    this.partyTutorial = !!data?.partyTutorial;
+    this.titlesTutorial = !!data?.titlesTutorial;
+    this.collectionTutorial = !!data?.collectionTutorial;
   }
 
   create() {
@@ -92,7 +105,9 @@ export default class CharacterScene extends Phaser.Scene {
     this.state.statPoints ??= 0;
     this.state.skillPoints ??= 0;
     this.state.titles ??= [];
+    this.state.equippedTitle ??= null;
     this.state.seenCards ??= [];
+    this.state.party ??= [];
     this.pending = { VIT: 0, MAG: 0, STR: 0, DEX: 0 };
     this.inspect = null;
     this.inspectSkill = null;
@@ -131,6 +146,7 @@ export default class CharacterScene extends Phaser.Scene {
     const bodyTop = tabY + tabH / 2 + 12;
     if (this.tab === 'gear') this.renderGearTab(bodyTop);
     else if (this.tab === 'skills') this.renderSkillsTab(bodyTop);
+    else if (this.tab === 'party') this.renderPartyTab(bodyTop);
     else if (this.tab === 'titles') this.renderTitlesTab(bodyTop);
     else if (this.tab === 'collection') this.renderCollectionTab(bodyTop);
     else if (this.tab === 'craft') this.renderCraftTab(bodyTop);
@@ -242,9 +258,8 @@ export default class CharacterScene extends Phaser.Scene {
     const item = itemId ? itemById(itemId) : null;
     const selected = this.inspect?.kind === 'slot' && this.inspect.slotKey === slotKey;
     // armor slots pick up their weight-class color (heavy/light/robe);
-    // weapon has its own neutral steel look; empty/locked slots stay dark
-    const isWeapon = slotKey === 'weapon';
-    const style = item && !isWeapon ? armorStyle(item.armorType) : null;
+    // weapon and trinket keep a neutral gold look; empty/locked slots stay dark
+    const style = item && ARMOR_SLOTS.includes(slotKey) ? armorStyle(item.armorType) : null;
     const fill = item ? (style ? style.base : MATERIALS.slate.light) : MATERIALS.slate.dark;
     const border = item ? (style ? style.border : COLORS.gold) : MATERIALS.slate.light;
     const box = this.add.rectangle(x, y, w, h, fill, item ? 0.92 : 0.6);
@@ -433,7 +448,7 @@ export default class CharacterScene extends Phaser.Scene {
       const cx2 = x0 + col * (cell + gap) + cell / 2;
       const cy2 = gridTop + row * (cell + gap) + cell / 2;
       const selected = this.inspect?.kind === 'inv' && this.inspect.index === i;
-      const style = item.slot !== 'weapon' ? armorStyle(item.armorType) : null;
+      const style = ARMOR_SLOTS.includes(item.slot) ? armorStyle(item.armorType) : null;
       const box = this.add
         .rectangle(cx2, cy2, cell, cell, style ? style.base : MATERIALS.slate.light, 0.92)
         .setStrokeStyle(selected ? 3 : 2, selected ? 0xffffff : style ? style.border : COLORS.gold, selected ? 1 : 0.85);
@@ -469,7 +484,7 @@ export default class CharacterScene extends Phaser.Scene {
         .setOrigin(0.5);
       return;
     }
-    const style = item.slot !== 'weapon' ? armorStyle(item.armorType) : null;
+    const style = ARMOR_SLOTS.includes(item.slot) ? armorStyle(item.armorType) : null;
     const iconX = x0 + 20;
     this.add
       .rectangle(iconX, top + 18, 28, 28, style ? style.base : MATERIALS.slate.light, 1)
@@ -494,6 +509,9 @@ export default class CharacterScene extends Phaser.Scene {
         lineSpacing: 2,
       })
       .setOrigin(0, 0);
+    // trade/crafting goods (e.g. Sturdy Hide) aren't equippable at all —
+    // no Equip button for those, just the inspect view
+    if (this.inspect.kind === 'inv' && !EQUIPPABLE_SLOTS.includes(item.slot)) return;
     const label = this.inspect.kind === 'inv' ? 'Equip' : 'Unequip';
     makeTextButton(this, x0 + w - 46, top + h - 16, 80, 26, label, () => {
       if (this.inspect.kind === 'inv') this.equip(this.inspect.itemId);
@@ -504,7 +522,7 @@ export default class CharacterScene extends Phaser.Scene {
 
   equip(itemId) {
     const item = itemById(itemId);
-    if (!item) return;
+    if (!item || !EQUIPPABLE_SLOTS.includes(item.slot)) return;
     const idx = this.state.inventory.indexOf(itemId);
     if (idx === -1) return;
     this.state.inventory.splice(idx, 1);
@@ -551,8 +569,15 @@ export default class CharacterScene extends Phaser.Scene {
         color: COLORS.textDim,
       })
       .setOrigin(0.5, 0);
+    if (this.skillsTutorial) {
+      this.add
+        .text(cx, top + 28, `Tap + next to a skill to spend a point — you have ${banked} to spend.`, {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic',
+        })
+        .setOrigin(0.5, 0);
+    }
 
-    const rowTop = top + 30;
+    const rowTop = top + (this.skillsTutorial ? 42 : 30);
     const rowH = 22;
     const rowW = Math.min(600, width - 24);
     const detailH = 100;
@@ -661,33 +686,139 @@ export default class CharacterScene extends Phaser.Scene {
     return h;
   }
 
-  // ---------- Titles tab (stub) ----------
+  // ---------- Party tab: recruited companions (Waypoint 5 on) ----------
+  // Read-only roster for now — no formation swap yet, per the design doc's
+  // own "basic version first" note; companions fight automatically via
+  // WorldScene.updateParty()/companionAI.js, they're not manually piloted.
 
-  renderTitlesTab(top) {
-    const { width } = this.scale;
+  renderPartyTab(top) {
+    const { width, height } = this.scale;
     const cx = width / 2;
-    const titles = this.state.titles ?? [];
-    this.add.text(cx, top, 'Titles — Upcoming', { fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968' }).setOrigin(0.5, 0);
+    const party = this.state.party ?? [];
+
     this.add
-      .text(
-        cx,
-        top + 26,
-        'Earned from major story milestones and campaign completions. Each title will grant bonus stats or stat points once this system ships.',
-        {
-          fontFamily: FONTS.body,
-          fontSize: '13px',
-          color: COLORS.textDim,
-          align: 'center',
-          wordWrap: { width: Math.min(480, width - 40) },
-          lineSpacing: 4,
-        }
-      )
+      .text(cx, top, `Party (${party.length + 1}/${PARTY_CAP})`, { fontFamily: FONTS.body, fontSize: '13px', color: '#d9b968' })
       .setOrigin(0.5, 0);
-    if (!titles.length) {
+    let y = top + 16;
+    if (this.partyTutorial) {
       this.add
-        .text(cx, top + 90, 'No titles earned yet.', { fontFamily: FONTS.body, fontSize: '12px', color: COLORS.textDim, fontStyle: 'italic' })
+        .text(cx, y, 'Companions fight alongside you automatically — no piloting needed. Recruit more as the journey continues.', {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic', align: 'center', wordWrap: { width: width - 32 },
+        })
+        .setOrigin(0.5, 0);
+      y += 26;
+    }
+    y += 4;
+
+    const cardW = Math.min(500, width - 24);
+    const cardH = Math.min(58, (height - y - 46) / Math.max(1, party.length + 1));
+
+    const kindred = kindredById(this.state.kindred);
+    this.renderPartyCard(cx, y + cardH / 2, cardW, cardH, {
+      name: kindred?.name ?? 'You',
+      classId: this.state.classId,
+      level: this.state.level ?? 1,
+      sheet: kindred?.sheet,
+      isPlayer: true,
+    });
+    y += cardH + 6;
+
+    party.forEach((comp) => {
+      this.renderPartyCard(cx, y + cardH / 2, cardW, cardH, comp);
+      y += cardH + 6;
+    });
+
+    if (!party.length) {
+      this.add
+        .text(cx, y + 10, 'No companions recruited yet — the road ahead will bring some.', {
+          fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim, fontStyle: 'italic', align: 'center', wordWrap: { width: width - 40 },
+        })
         .setOrigin(0.5, 0);
     }
+  }
+
+  renderPartyCard(cx, y, w, h, comp) {
+    drawPanel(this, cx, y, w, h, { material: comp.isPlayer ? 'wood' : 'slate', radius: 8 });
+    const klass = classById(comp.classId);
+    if (comp.sheet && this.textures.exists(comp.sheet)) {
+      const spr = this.add.sprite(cx - w / 2 + 24, y, comp.sheet, ROW.walkDown * SHEET_COLS);
+      spr.play(`${comp.sheet}-idle-down`);
+      spr.setScale(Math.min(1, (h - 6) / 64));
+    }
+    this.add
+      .text(cx - w / 2 + 48, y - h * 0.22, comp.name, { fontFamily: FONTS.body, fontSize: '13px', color: '#f5ecd8' })
+      .setOrigin(0, 0.5);
+    this.add
+      .text(cx - w / 2 + 48, y + h * 0.22, `${klass?.name ?? comp.classId} • Lv. ${comp.level}`, {
+        fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968',
+      })
+      .setOrigin(0, 0.5);
+    if (comp.isPlayer) {
+      this.add.text(cx + w / 2 - 8, y, 'You', { fontFamily: FONTS.body, fontSize: '9px', color: COLORS.textDim, fontStyle: 'italic' }).setOrigin(1, 0.5);
+    }
+  }
+
+  // ---------- Titles tab: earned milestone titles (Waypoint 8 on) ----------
+  // Basic version, per the design doc: one equip slot, one flat passive
+  // bonus per title — same bonus-map shape as equipment (data/titles.js).
+
+  renderTitlesTab(top) {
+    const { width, height } = this.scale;
+    const cx = width / 2;
+    const titleIds = this.state.titles ?? [];
+
+    this.add.text(cx, top, 'Titles', { fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968' }).setOrigin(0.5, 0);
+    let y = top + 16;
+    if (this.titlesTutorial) {
+      this.add
+        .text(cx, y, 'Equip one title at a time for its passive bonus. Earn more from major story milestones.', {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic', align: 'center', wordWrap: { width: width - 32 },
+        })
+        .setOrigin(0.5, 0);
+      y += 26;
+    }
+    y += 8;
+
+    if (!titleIds.length) {
+      this.add
+        .text(cx, y + 10, 'No titles earned yet — the road ahead will bring some.', {
+          fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim, fontStyle: 'italic', align: 'center', wordWrap: { width: width - 40 },
+        })
+        .setOrigin(0.5, 0);
+      return;
+    }
+
+    const cardW = Math.min(500, width - 24);
+    const cardH = Math.min(74, (height - y - 46) / titleIds.length);
+
+    titleIds.forEach((id) => {
+      const def = titleById(id);
+      if (!def) return;
+      this.renderTitleCard(cx, y + cardH / 2, cardW, cardH, def);
+      y += cardH + 6;
+    });
+  }
+
+  renderTitleCard(cx, y, w, h, def) {
+    const equipped = this.state.equippedTitle === def.id;
+    drawPanel(this, cx, y, w, h, { material: equipped ? 'wood' : 'slate', radius: 8 });
+    this.add
+      .text(cx - w / 2 + 12, y - h * 0.32, def.name, { fontFamily: FONTS.body, fontSize: '13px', color: '#f5ecd8' })
+      .setOrigin(0, 0.5);
+    this.add
+      .text(cx - w / 2 + 12, y - h * 0.06, bonusLine(def), { fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968' })
+      .setOrigin(0, 0.5);
+    this.add
+      .text(cx - w / 2 + 12, y + h * 0.28, def.flavor, {
+        fontFamily: FONTS.body, fontSize: '9px', color: COLORS.textDim, fontStyle: 'italic',
+        wordWrap: { width: w - 110 }, lineSpacing: 2,
+      })
+      .setOrigin(0, 0.5);
+    makeTextButton(this, cx + w / 2 - 44, y, 78, 28, equipped ? 'Unequip' : 'Equip', () => {
+      this.state.equippedTitle = equipped ? null : def.id;
+      this.persistGear();
+      this.build();
+    });
   }
 
   // ---------- Craft tab (stub) ----------
@@ -712,6 +843,14 @@ export default class CharacterScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const cx = width / 2;
     const cards = this.state.seenCards ?? [];
+    if (this.collectionTutorial) {
+      this.add
+        .text(cx, top, 'Tap a card to relive that moment of the story — your Tales collect here as you journey.', {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic', align: 'center', wordWrap: { width: width - 32 },
+        })
+        .setOrigin(0.5, 0);
+      top += 26;
+    }
     if (!cards.length) {
       this.add
         .text(cx, top + 16, 'Nothing recorded yet — your story will appear here as you progress.', {

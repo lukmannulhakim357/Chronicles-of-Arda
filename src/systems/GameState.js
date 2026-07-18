@@ -1,5 +1,6 @@
 import { classById, derivedStats } from '../data/classes.js';
 import { itemById } from '../data/items.js';
+import { titleById } from '../data/titles.js';
 
 // The per-run game state, stored in the Phaser registry under 'state'
 // and serialized as-is by SaveSystem.
@@ -31,8 +32,13 @@ export function newGameState(kindredId, classId) {
     skills: {},
     actionBar: [null, null, null, null],
     potions: { hp: 2, mp: 2 },
-    titles: [],
+    titles: [], // earned title ids — src/data/titles.js
+    equippedTitle: null, // one at a time (basic version — concept doc §14)
     seenCards: [],
+    party: [], // recruited companions — src/systems/party.js
+    journeyFlags: {}, // cross-waypoint narrative flags, unlike quest.flags
+    // (reset fresh per zone by freshQuestState()) these persist for the
+    // whole run — e.g. WP4's companion choice, read back in WP5
   };
 }
 
@@ -58,10 +64,13 @@ export function setState(scene, state) {
   state.inventory ??= [];
   state.gold ??= 0;
   state.titles ??= [];
+  state.equippedTitle ??= null;
   state.seenCards ??= [];
   state.skills ??= {};
   state.actionBar ??= [null, null, null, null];
   state.potions ??= { hp: 2, mp: 2 };
+  state.party ??= [];
+  state.journeyFlags ??= {};
   if (state.mp == null) state.mp = derivedStats(effectiveStats(state)).maxMp;
   scene.registry.set('state', state);
 }
@@ -75,6 +84,12 @@ export function effectiveStats(state) {
     const item = itemById(itemId);
     if (!item) continue;
     for (const [stat, v] of Object.entries(item.bonus)) {
+      stats[stat] = (stats[stat] ?? 0) + v;
+    }
+  }
+  const title = state.equippedTitle ? titleById(state.equippedTitle) : null;
+  if (title) {
+    for (const [stat, v] of Object.entries(title.bonus)) {
       stats[stat] = (stats[stat] ?? 0) + v;
     }
   }
