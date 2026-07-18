@@ -195,14 +195,14 @@ export default class TheCrossingQuest {
             title: 'The Great Journey — Complete',
             paragraphs: [
               'Waypoint 10 — Crossing to Aman: complete.',
-              'From the dark water of Cuiviénen to the light on this horizon, the march is over. Not everyone who set out is still walking it — Lenwë turned south, the Eglath stayed with their lost King, the Falathrim stayed with the Sea itself — but you crossed the whole of it, and Aman rises ahead now, real and close, not just a word the Valar used to explain why any of this was worth doing.',
+              'From the dark water of Cuiviénen to the light on this horizon, the march is over. Not everyone who set out is still walking it — Lenwë turned south, the Eglath stayed with their lost King, the Falathrim stayed with the Sea itself — but you crossed the whole of it, and Aman rises ahead now, real.',
               this.partyRosterLine()
                 ? `${this.partyRosterLine()} crossed with you, all the way to the end.`
                 : 'You crossed alone, in the end — and that is its own kind of story.',
-              'New Title: Traveler of the Uttermost West. +3 stat points, earned for the whole of the journey — spend them from the Gear tab whenever you like.',
               'Valinor waits beyond this shore: Valmar, Tirion, Alqualondë, and the light of the Two Trees. That homecoming is a story for another day.',
             ],
-            rewards: { xp: 50, gold: 60 },
+            artFlag: 'The Shores of Aman — seen from the islet: white sand catching a light with no single source, gold and silver both at once, rising out of the dark sea ahead',
+            rewards: { xp: 50, gold: 60, items: ['Traveler of the Uttermost West (Title)', '+3 Stat Points'] },
             button: 'The Journey Is Complete',
             next: 'Journey',
           });
