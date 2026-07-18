@@ -2,6 +2,8 @@
 // a mobile keyboard on its own, so profile naming (and anything else needing
 // typed text) uses a DOM modal layered above the game instead.
 
+const OVERLAY_ATTR = 'data-arda-text-prompt';
+
 export function promptText({
   title,
   subtitle,
@@ -13,7 +15,14 @@ export function promptText({
   onSubmit,
   onCancel,
 }) {
+  // A stray double-tap (common on mobile — touch + synthesized mouse events
+  // both landing) can call this twice before the first overlay closes,
+  // stacking a second one on top. Only one prompt should ever be open at
+  // once, so any leftover instance is torn down before this one opens.
+  document.querySelectorAll(`[${OVERLAY_ATTR}]`).forEach((el) => el.remove());
+
   const overlay = document.createElement('div');
+  overlay.setAttribute(OVERLAY_ATTR, '');
   overlay.style.cssText = `
     position: fixed; inset: 0; z-index: 10000;
     background: rgba(5,6,15,0.82);
