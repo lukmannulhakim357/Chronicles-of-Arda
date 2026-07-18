@@ -16,6 +16,8 @@ import * as beleriand from './beleriand.js';
 import TheKingIsLostQuest from '../quests/thekingislost.js';
 import * as falas from './falas.js';
 import ShipwrightAndSeaQuest from '../quests/shipwrightandsea.js';
+import * as crossing from './crossing.js';
+import TheCrossingQuest from '../quests/thecrossing.js';
 import * as training from './training.js';
 import TrainingQuest from '../quests/training.js';
 
@@ -32,6 +34,7 @@ export const ZONES = {
   'ered-luin': { build: eredluin.build, Quest: FirstContactQuest, questId: 'first-contact' },
   beleriand: { build: beleriand.build, Quest: TheKingIsLostQuest, questId: 'the-king-is-lost' },
   falas: { build: falas.build, Quest: ShipwrightAndSeaQuest, questId: 'shipwright-and-sea' },
+  crossing: { build: crossing.build, Quest: TheCrossingQuest, questId: 'the-crossing' },
   training: { build: training.build, Quest: TrainingQuest, questId: 'training' }, // class-trial grounds, never saved
 };
 

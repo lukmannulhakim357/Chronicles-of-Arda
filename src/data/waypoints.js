@@ -81,6 +81,6 @@ export const WAYPOINTS = [
     terrain: 'The Great Sea, via Tol Eressëa',
     beat: 'Ulmo ferries the host across. Valinor at last.',
     quest: 'The Crossing',
-    built: false,
+    built: true,
   },
 ];

@@ -11,6 +11,12 @@ export const TITLES = {
     bonus: { DEX: 2 },
     flavor: 'Earned searching Nan Elmoth for a King who could not be found — the search itself sharpened something.',
   },
+  westward: {
+    id: 'westward',
+    name: 'Traveler of the Uttermost West',
+    bonus: { VIT: 1, MAG: 1, STR: 1, DEX: 1 },
+    flavor: 'Earned completing the Great Journey — every league of it, from the waters of Cuiviénen to the shores of Aman.',
+  },
 };
 
 export function titleById(id) {
