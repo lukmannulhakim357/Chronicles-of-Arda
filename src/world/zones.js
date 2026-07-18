@@ -12,6 +12,10 @@ import * as rhovanion from './rhovanion.js';
 import TheLongRoadQuest from '../quests/thelongroad.js';
 import * as eredluin from './eredluin.js';
 import FirstContactQuest from '../quests/firstcontact.js';
+import * as beleriand from './beleriand.js';
+import TheKingIsLostQuest from '../quests/thekingislost.js';
+import * as falas from './falas.js';
+import ShipwrightAndSeaQuest from '../quests/shipwrightandsea.js';
 import * as training from './training.js';
 import TrainingQuest from '../quests/training.js';
 
@@ -26,6 +30,8 @@ export const ZONES = {
   hithaeglir: { build: hithaeglir.build, Quest: ThePassQuest, questId: 'the-pass' },
   rhovanion: { build: rhovanion.build, Quest: TheLongRoadQuest, questId: 'the-long-road' },
   'ered-luin': { build: eredluin.build, Quest: FirstContactQuest, questId: 'first-contact' },
+  beleriand: { build: beleriand.build, Quest: TheKingIsLostQuest, questId: 'the-king-is-lost' },
+  falas: { build: falas.build, Quest: ShipwrightAndSeaQuest, questId: 'shipwright-and-sea' },
   training: { build: training.build, Quest: TrainingQuest, questId: 'training' }, // class-trial grounds, never saved
 };
 

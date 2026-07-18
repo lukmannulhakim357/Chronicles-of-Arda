@@ -65,7 +65,7 @@ export const WAYPOINTS = [
     terrain: 'River Sirion valley, deep forest',
     beat: 'Elwë walks into Nan Elmoth and does not return.',
     quest: 'The King Is Lost',
-    built: false,
+    built: true,
   },
   {
     id: 'falas',
@@ -73,7 +73,7 @@ export const WAYPOINTS = [
     terrain: 'The western shore',
     beat: 'Ossë teaches the host to love the sea.',
     quest: 'Shipwright and Sea',
-    built: false,
+    built: true,
   },
   {
     id: 'crossing',

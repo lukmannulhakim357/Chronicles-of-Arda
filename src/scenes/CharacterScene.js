@@ -9,6 +9,7 @@ import { kindredById } from '../data/kindreds.js';
 import { xpToNextLevel } from '../data/leveling.js';
 import { SaveSystem } from '../systems/SaveSystem.js';
 import { PARTY_CAP } from '../systems/party.js';
+import { titleById } from '../data/titles.js';
 import {
   MAX_TREE_POINTS,
   getTree,
@@ -88,6 +89,8 @@ export default class CharacterScene extends Phaser.Scene {
     this.gearTutorial = !!data?.gearTutorial;
     this.skillsTutorial = !!data?.skillsTutorial;
     this.partyTutorial = !!data?.partyTutorial;
+    this.titlesTutorial = !!data?.titlesTutorial;
+    this.collectionTutorial = !!data?.collectionTutorial;
   }
 
   create() {
@@ -102,6 +105,7 @@ export default class CharacterScene extends Phaser.Scene {
     this.state.statPoints ??= 0;
     this.state.skillPoints ??= 0;
     this.state.titles ??= [];
+    this.state.equippedTitle ??= null;
     this.state.seenCards ??= [];
     this.state.party ??= [];
     this.pending = { VIT: 0, MAG: 0, STR: 0, DEX: 0 };
@@ -754,33 +758,67 @@ export default class CharacterScene extends Phaser.Scene {
     }
   }
 
-  // ---------- Titles tab (stub) ----------
+  // ---------- Titles tab: earned milestone titles (Waypoint 8 on) ----------
+  // Basic version, per the design doc: one equip slot, one flat passive
+  // bonus per title — same bonus-map shape as equipment (data/titles.js).
 
   renderTitlesTab(top) {
-    const { width } = this.scale;
+    const { width, height } = this.scale;
     const cx = width / 2;
-    const titles = this.state.titles ?? [];
-    this.add.text(cx, top, 'Titles — Upcoming', { fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968' }).setOrigin(0.5, 0);
-    this.add
-      .text(
-        cx,
-        top + 26,
-        'Earned from major story milestones and campaign completions. Each title will grant bonus stats or stat points once this system ships.',
-        {
-          fontFamily: FONTS.body,
-          fontSize: '13px',
-          color: COLORS.textDim,
-          align: 'center',
-          wordWrap: { width: Math.min(480, width - 40) },
-          lineSpacing: 4,
-        }
-      )
-      .setOrigin(0.5, 0);
-    if (!titles.length) {
+    const titleIds = this.state.titles ?? [];
+
+    this.add.text(cx, top, 'Titles', { fontFamily: FONTS.body, fontSize: '15px', color: '#d9b968' }).setOrigin(0.5, 0);
+    let y = top + 16;
+    if (this.titlesTutorial) {
       this.add
-        .text(cx, top + 90, 'No titles earned yet.', { fontFamily: FONTS.body, fontSize: '12px', color: COLORS.textDim, fontStyle: 'italic' })
+        .text(cx, y, 'Equip one title at a time for its passive bonus. Earn more from major story milestones.', {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic', align: 'center', wordWrap: { width: width - 32 },
+        })
         .setOrigin(0.5, 0);
+      y += 26;
     }
+    y += 8;
+
+    if (!titleIds.length) {
+      this.add
+        .text(cx, y + 10, 'No titles earned yet — the road ahead will bring some.', {
+          fontFamily: FONTS.body, fontSize: '11px', color: COLORS.textDim, fontStyle: 'italic', align: 'center', wordWrap: { width: width - 40 },
+        })
+        .setOrigin(0.5, 0);
+      return;
+    }
+
+    const cardW = Math.min(500, width - 24);
+    const cardH = Math.min(74, (height - y - 46) / titleIds.length);
+
+    titleIds.forEach((id) => {
+      const def = titleById(id);
+      if (!def) return;
+      this.renderTitleCard(cx, y + cardH / 2, cardW, cardH, def);
+      y += cardH + 6;
+    });
+  }
+
+  renderTitleCard(cx, y, w, h, def) {
+    const equipped = this.state.equippedTitle === def.id;
+    drawPanel(this, cx, y, w, h, { material: equipped ? 'wood' : 'slate', radius: 8 });
+    this.add
+      .text(cx - w / 2 + 12, y - h * 0.32, def.name, { fontFamily: FONTS.body, fontSize: '13px', color: '#f5ecd8' })
+      .setOrigin(0, 0.5);
+    this.add
+      .text(cx - w / 2 + 12, y - h * 0.06, bonusLine(def), { fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968' })
+      .setOrigin(0, 0.5);
+    this.add
+      .text(cx - w / 2 + 12, y + h * 0.28, def.flavor, {
+        fontFamily: FONTS.body, fontSize: '9px', color: COLORS.textDim, fontStyle: 'italic',
+        wordWrap: { width: w - 110 }, lineSpacing: 2,
+      })
+      .setOrigin(0, 0.5);
+    makeTextButton(this, cx + w / 2 - 44, y, 78, 28, equipped ? 'Unequip' : 'Equip', () => {
+      this.state.equippedTitle = equipped ? null : def.id;
+      this.persistGear();
+      this.build();
+    });
   }
 
   // ---------- Craft tab (stub) ----------
@@ -805,6 +843,14 @@ export default class CharacterScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const cx = width / 2;
     const cards = this.state.seenCards ?? [];
+    if (this.collectionTutorial) {
+      this.add
+        .text(cx, top, 'Tap a card to relive that moment of the story — your Tales collect here as you journey.', {
+          fontFamily: FONTS.body, fontSize: '10px', color: '#d9b968', fontStyle: 'italic', align: 'center', wordWrap: { width: width - 32 },
+        })
+        .setOrigin(0.5, 0);
+      top += 26;
+    }
     if (!cards.length) {
       this.add
         .text(cx, top + 16, 'Nothing recorded yet — your story will appear here as you progress.', {

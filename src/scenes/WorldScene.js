@@ -218,6 +218,25 @@ export default class WorldScene extends Phaser.Scene {
     this.scene.launch('Character', { tab: 'party', partyTutorial: true });
   }
 
+  // scripted tutorial moment (Waypoint 8's Collection nudge) — opens the
+  // Collection tab; the cards themselves were already fully functional,
+  // this just points the player at the tab the first time it matters
+  openCharacterForCollectionTutorial() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', { tab: 'collection', collectionTutorial: true });
+  }
+
+  // scripted tutorial moment (Waypoint 8's first Title reward) — opens the
+  // Titles tab with a nudge to equip it
+  openCharacterForTitlesTutorial() {
+    this.captureState();
+    this.scene.pause();
+    this.scene.pause('UI');
+    this.scene.launch('Character', { tab: 'titles', titlesTutorial: true });
+  }
+
   // equipment/stats may have changed in the Character scene while World
   // was paused — refresh derived stats and clamp HP/MP down if their max dropped
   onResumeFromOverlay() {
@@ -510,6 +529,19 @@ export default class WorldScene extends Phaser.Scene {
     spr.play(`${comp.sheet}-idle-down`);
     spr.setDepth(spr.y);
     this.partyMembers.push({ comp, sprite: spr, combatant: companionCombatant(comp), followOff: off, facing: 'down', nextActionAt: 0 });
+  }
+
+  // The mirror of addCompanionToWorld above — a companion leaving the party
+  // for good (Waypoint 8's Eglath farewell) needs its in-world body cleaned
+  // up too, not just its state.party entry. Caller is still responsible for
+  // calling removeCompanion(state, id) from systems/party.js to keep the
+  // save in sync; this only tears down the live sprite/combat entry.
+  removeCompanionFromWorld(companionId) {
+    this.partyMembers ??= [];
+    const idx = this.partyMembers.findIndex((p) => p.comp.id === companionId);
+    if (idx === -1) return;
+    this.partyMembers[idx].sprite?.destroy();
+    this.partyMembers.splice(idx, 1);
   }
 
   // Companions follow the player (same chase-toward-target technique every
